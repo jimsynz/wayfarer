@@ -1,4 +1,4 @@
-defmodule Switch.Application do
+defmodule Wayfarer.Application do
   @moduledoc false
 
   use Application
@@ -7,6 +7,6 @@ defmodule Switch.Application do
   @spec start(any, any) :: {:error, any} | {:ok, pid}
   def start(_type, _args) do
     []
-    |> Supervisor.start_link(strategy: :one_for_one, name: Switch.Supervisor)
+    |> Supervisor.start_link(strategy: :one_for_one, name: Wayfarer.Supervisor)
   end
 end

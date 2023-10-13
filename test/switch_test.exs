@@ -1,8 +1,8 @@
-defmodule SwitchTest do
+defmodule WayfarerTest do
   use ExUnit.Case
-  doctest Switch
+  doctest Wayfarer
 
   test "greets the world" do
-    assert Switch.hello() == :world
+    assert Wayfarer.hello() == :world
   end
 end

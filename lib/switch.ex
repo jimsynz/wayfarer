@@ -1,6 +1,6 @@
-defmodule Switch do
+defmodule Wayfarer do
   @moduledoc """
-  Documentation for `Switch`.
+  Documentation for `Wayfarer`.
   """
 
   @doc """
@@ -8,7 +8,7 @@ defmodule Switch do
 
   ## Examples
 
-      iex> Switch.hello()
+      iex> Wayfarer.hello()
       :world
 
   """

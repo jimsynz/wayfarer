@@ -1,4 +1,4 @@
-defmodule Switch.MixProject do
+defmodule Wayfarer.MixProject do
   use Mix.Project
 
   @moduledoc """
@@ -9,7 +9,7 @@ defmodule Switch.MixProject do
 
   def project do
     [
-      app: :switch,
+      app: :wayfarer,
       version: @version,
       elixir: "~> 1.15",
       start_permanent: Mix.env() == :prod,
@@ -18,12 +18,12 @@ defmodule Switch.MixProject do
       deps: deps(),
       description: @moduledoc,
       package: package(),
-      source_url: "https://code.harton.nz/bivouac/switch",
-      homepage_url: "https://code.harton.nz/bivouac/switch",
+      source_url: "https://code.harton.nz/bivouac/wayfarer",
+      homepage_url: "https://code.harton.nz/bivouac/wayfarer",
       aliases: aliases(),
       dialyzer: [plt_add_apps: []],
       docs: [
-        main: "Switch",
+        main: "Wayfarer",
         extras: ["README.md"],
         formatters: ["html"]
       ]
@@ -32,13 +32,13 @@ defmodule Switch.MixProject do
 
   defp package do
     [
-      name: :switch,
+      name: :wayfarer,
       files: ~w[lib .formatter.exs mix.exs README.md LICENSE.md CHANGELOG.md],
       licenses: ["HL3-FULL"],
       links: %{
-        "Source" => "https://code.harton.nz/bivouac/switch"
+        "Source" => "https://code.harton.nz/bivouac/wayfarer"
       },
-      source_url: "https://code.harton.nz/bivouac/switch"
+      source_url: "https://code.harton.nz/bivouac/wayfarer"
     ]
   end
 
@@ -46,7 +46,7 @@ defmodule Switch.MixProject do
   def application do
     [
       extra_applications: [:logger],
-      mod: {Switch.Application, []}
+      mod: {Wayfarer.Application, []}
     ]
   end
 
