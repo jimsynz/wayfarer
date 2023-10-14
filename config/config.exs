@@ -9,4 +9,5 @@ config :git_ops,
   manage_readme_version: "README.md"
 
 config :wayfarer,
-  start_listeners?: config_env() != :test
+  start_listener_supervisor?: config_env() != :test,
+  start_target_supervisor?: config_env() != :test

@@ -7,13 +7,14 @@ defmodule Wayfarer.Application do
   @spec start(any, any) :: {:error, any} | {:ok, pid}
   def start(_type, _args) do
     []
-    |> start_listeners?()
+    |> maybe_append_child(:start_target_supervisor?, Wayfarer.Target.Supervisor)
+    |> maybe_append_child(:start_listener_supervisor?, Wayfarer.Listener.Supervisor)
     |> Supervisor.start_link(strategy: :one_for_one, name: Wayfarer.Supervisor)
   end
 
-  defp start_listeners?(children) do
-    if Application.get_env(:wayfarer, :start_listeners?, true) do
-      Enum.concat(children, [Wayfarer.Listener.Supervisor])
+  defp maybe_append_child(children, config_key, child, default \\ true) do
+    if Application.get_env(:wayfarer, config_key, default) do
+      Enum.concat(children, [child])
     else
       children
     end
