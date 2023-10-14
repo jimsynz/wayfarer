@@ -88,7 +88,7 @@ defmodule Wayfarer.ListenerTest do
 
       # Crash it
       capture_log(fn ->
-        [{_, pid}] = Registry.lookup(Listener.Registry, {{127, 0, 0, 1}, port})
+        [{_, pid}] = Registry.lookup(Listener.Registry, {:http, {127, 0, 0, 1}, port})
         Process.exit(pid, :kill)
       end)
 
@@ -116,7 +116,7 @@ defmodule Wayfarer.ListenerTest do
                |> Finch.build("http://127.0.0.1:#{port}/")
                |> Finch.request(:test_client)
 
-      Listener.stop_listener({127, 0, 0, 1}, port)
+      Listener.stop_listener(:http, {127, 0, 0, 1}, port)
 
       wait_until_dead(pid)
 

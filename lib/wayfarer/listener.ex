@@ -17,7 +17,7 @@ defmodule Wayfarer.Listener do
   @doc """
   Stop listener
   """
-  @spec stop_listener(:inet.socket_address(), :inet.port_number()) :: :ok
-  def stop_listener(ip, port),
-    do: GenServer.stop({:via, Registry, {ListenerRegistry, {ip, port}}}, :normal)
+  @spec stop_listener(:http | :https, :inet.socket_address(), :inet.port_number()) :: :ok
+  def stop_listener(scheme, ip, port),
+    do: GenServer.stop({:via, Registry, {ListenerRegistry, {scheme, ip, port}}}, :normal)
 end

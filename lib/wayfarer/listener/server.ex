@@ -48,7 +48,7 @@ defmodule Wayfarer.Listener.Server do
     with {:ok, scheme} <- fetch_required_option(options, :scheme),
          {:ok, pid} <- Bandit.start_link(options),
          {:ok, %{address: addr, port: port}} <- ThousandIsland.listener_info(pid),
-         {:ok, _pid} <- Registry.register(ListenerRegistry, {addr, port}, pid) do
+         {:ok, _pid} <- Registry.register(ListenerRegistry, {scheme, addr, port}, pid) do
       listen_url = listen_url(scheme, addr, port)
       version = Application.spec(:wayfarer)[:vsn]
       Logger.info("Started Wayfarer v#{version} listener on #{listen_url}")
