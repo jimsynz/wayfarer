@@ -5,6 +5,19 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.3.0](https://code.harton.nz/james/smokestack/compare/v0.2.0...v0.3.0) (2023-10-14)
+
+
+
+
+### Features:
+
+* Target: Add healthy-checking HTTP targets.
+
+### Improvements:
+
+* Listener: Register listeners with scheme, address and port.
+
 ## [v0.2.0](https://code.harton.nz/james/smokestack/compare/v0.1.0...v0.2.0) (2023-10-14)
 
 
