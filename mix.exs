@@ -55,6 +55,12 @@ defmodule Wayfarer.MixProject do
     opts = [only: ~w[dev test]a, runtime: false]
 
     [
+      {:bandit, "~> 0.7"},
+      {:mint, "~> 1.5"},
+      {:nimble_options, "~> 1.0"},
+      {:plug, "~> 1.15"},
+      {:websock, "~> 0.5"},
+
       # Dev/test
       {:credo, "~> 1.7", opts},
       {:dialyxir, "~> 1.3", opts},
@@ -63,6 +69,7 @@ defmodule Wayfarer.MixProject do
       {:ex_check, "~> 0.15", opts},
       {:ex_doc, ">= 0.0.0", opts},
       {:faker, "~> 0.17", opts},
+      {:finch, "~> 0.16", opts},
       {:git_ops, "~> 2.6", opts},
       {:mix_audit, "~> 2.1", opts}
     ]
