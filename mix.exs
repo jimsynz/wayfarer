@@ -18,8 +18,8 @@ defmodule Wayfarer.MixProject do
       deps: deps(),
       description: @moduledoc,
       package: package(),
-      source_url: "https://code.harton.nz/bivouac/wayfarer",
-      homepage_url: "https://code.harton.nz/bivouac/wayfarer",
+      source_url: "https://code.harton.nz/james/wayfarer",
+      homepage_url: "https://code.harton.nz/james/wayfarer",
       aliases: aliases(),
       dialyzer: [plt_add_apps: []],
       docs: [
@@ -36,9 +36,9 @@ defmodule Wayfarer.MixProject do
       files: ~w[lib .formatter.exs mix.exs README.md LICENSE.md CHANGELOG.md],
       licenses: ["HL3-FULL"],
       links: %{
-        "Source" => "https://code.harton.nz/bivouac/wayfarer"
+        "Source" => "https://code.harton.nz/james/wayfarer"
       },
-      source_url: "https://code.harton.nz/bivouac/wayfarer"
+      source_url: "https://code.harton.nz/james/wayfarer"
     ]
   end
 

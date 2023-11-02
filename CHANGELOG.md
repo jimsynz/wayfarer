@@ -5,7 +5,7 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
-## [v0.3.0](https://code.harton.nz/james/smokestack/compare/v0.2.0...v0.3.0) (2023-10-14)
+## [v0.3.0](https://code.harton.nz/james/wayfarer/compare/v0.2.0...v0.3.0) (2023-10-14)
 
 
 
@@ -18,7 +18,7 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 * Listener: Register listeners with scheme, address and port.
 
-## [v0.2.0](https://code.harton.nz/james/smokestack/compare/v0.1.0...v0.2.0) (2023-10-14)
+## [v0.2.0](https://code.harton.nz/james/wayfarer/compare/v0.1.0...v0.2.0) (2023-10-14)
 
 
 
@@ -27,7 +27,7 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 * Add ability to start and stop HTTP listeners. (#1)
 
-## [v0.1.0](https://code.harton.nz/james/smokestack/compare/v0.1.0...v0.1.0) (2023-10-13)
+## [v0.1.0](https://code.harton.nz/james/wayfarer/compare/v0.1.0...v0.1.0) (2023-10-13)
 
 
 

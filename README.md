@@ -1,6 +1,6 @@
 # Wayfarer
 
-[![Build Status](https://drone.harton.nz/api/badges/bivouac/wayfarer/status.svg?ref=refs/heads/main)](https://drone.harton.nz/bivouac/wayfarer)
+[![Build Status](https://drone.harton.nz/api/badges/james/wayfarer/status.svg?ref=refs/heads/main)](https://drone.harton.nz/james/wayfarer)
 [![Hippocratic License HL3-FULL](https://img.shields.io/static/v1?label=Hippocratic%20License&message=HL3-FULL&labelColor=5e2751&color=bc8c3d)](https://firstdonoharm.dev/version/3/0/full.html)
 
 Wayfarer is a runtime-configurable HTTP reverse proxy using
@@ -19,12 +19,12 @@ dependency in your app:
 ```elixir
 def deps do
   [
-    {:wayfarer, git: "https://code.harton.nz/bivouac/wayfarer.git", tag: "v0.1.0"}
+    {:wayfarer, git: "https://code.harton.nz/james/wayfarer.git", tag: "v0.1.0"}
   ]
 end
 ```
 
-Documentation for `main` is always available on [my docs site](https://docs.harton.nz/bivouac/wayfarer/Wayfarer.html).
+Documentation for `main` is always available on [my docs site](https://docs.harton.nz/james/wayfarer/Wayfarer.html).
 
 ## License
 
