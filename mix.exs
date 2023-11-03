@@ -55,7 +55,7 @@ defmodule Wayfarer.MixProject do
     opts = [only: ~w[dev test]a, runtime: false]
 
     [
-      {:bandit, "~> 0.7"},
+      {:bandit, "~> 1.0"},
       {:mint, "~> 1.5"},
       {:nimble_options, "~> 1.0"},
       {:plug, "~> 1.15"},
