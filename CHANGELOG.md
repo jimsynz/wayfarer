@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.4.0](https://code.harton.nz/james/wayfarer/compare/v0.3.0...v0.4.0) (2023-11-19)
+
+
+
+
+### Features:
+
+* add proxying. (#7)
+
 ## [v0.3.0](https://code.harton.nz/james/wayfarer/compare/v0.2.0...v0.3.0) (2023-10-14)
 
 
