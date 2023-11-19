@@ -8,6 +8,9 @@ config :git_ops,
   version_tag_prefix: "v",
   manage_readme_version: "README.md"
 
+config :spark, :formatter, remove_parens?: true
+
 config :wayfarer,
   start_listener_supervisor?: config_env() != :test,
+  start_server_supervisor?: config_env() != :test,
   start_target_supervisor?: config_env() != :test

@@ -24,8 +24,42 @@ defmodule Wayfarer.MixProject do
       dialyzer: [plt_add_apps: []],
       docs: [
         main: "Wayfarer",
-        extras: ["README.md"],
-        formatters: ["html"]
+        formatters: ["html"],
+        extra_section: "GUIDES",
+        filter_modules: ~r/^Elixir.Wayfarer/,
+        source_url_pattern:
+          "https://code.harton.nz/james/wayfarer/src/branch/main/%{path}#L%{line}",
+        spark: [
+          extensions: [
+            %{
+              module: Wayfarer.Dsl,
+              name: "Wayfarer.Dsl",
+              target: "Wayfarer",
+              type: "Wayfarer"
+            }
+          ]
+        ],
+        extras:
+          ["README.md"]
+          |> Enum.concat(Path.wildcard("documentation/**/*.{md,livemd,cheatmd}")),
+        groups_for_extras:
+          "documentation/*"
+          |> Path.wildcard()
+          |> Enum.map(fn dir ->
+            name =
+              dir
+              |> Path.split()
+              |> List.last()
+              |> String.split("_")
+              |> Enum.map_join(" ", &String.capitalize/1)
+
+            files =
+              dir
+              |> Path.join("**.{md,livemd,cheatmd}")
+              |> Path.wildcard()
+
+            {name, files}
+          end)
       ]
     ]
   end
@@ -34,6 +68,7 @@ defmodule Wayfarer.MixProject do
     [
       name: :wayfarer,
       files: ~w[lib .formatter.exs mix.exs README.md LICENSE.md CHANGELOG.md],
+      maintainers: ["James Harton <james@harton.nz>"],
       licenses: ["HL3-FULL"],
       links: %{
         "Source" => "https://code.harton.nz/james/wayfarer"
@@ -56,9 +91,13 @@ defmodule Wayfarer.MixProject do
 
     [
       {:bandit, "~> 1.0"},
+      {:castore, "~> 1.0"},
+      {:ip, "~> 2.0"},
       {:mint, "~> 1.5"},
       {:nimble_options, "~> 1.0"},
       {:plug, "~> 1.15"},
+      {:spark, "~> 1.1"},
+      {:telemetry, "~> 1.2"},
       {:websock, "~> 0.5"},
 
       # Dev/test
@@ -69,13 +108,17 @@ defmodule Wayfarer.MixProject do
       {:ex_check, "~> 0.15", opts},
       {:ex_doc, ">= 0.0.0", opts},
       {:faker, "~> 0.17", opts},
-      {:finch, "~> 0.16", opts},
       {:git_ops, "~> 2.6", opts},
+      {:mimic, "~> 1.7", Keyword.delete(opts, :runtime)},
       {:mix_audit, "~> 2.1", opts}
     ]
   end
 
-  defp aliases, do: []
+  defp aliases,
+    do: [
+      "spark.formatter": "spark.formatter --extensions=Wayfarer.Dsl",
+      "spark.cheat_sheets": "spark.cheat_sheets --extensions=Wayfarer.Dsl"
+    ]
 
   defp elixirc_paths(env) when env in ~w[dev test]a, do: ~w[lib test/support]
   defp elixirc_paths(_), do: ~w[lib]

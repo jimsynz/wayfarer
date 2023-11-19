@@ -1,8 +1,11 @@
 defmodule Wayfarer.TargetTest do
   @moduledoc false
   use ExUnit.Case, async: false
+  use Support.PortTracker
   alias Support.HttpServer
+
   alias Wayfarer.Target
+  import IP.Sigil
 
   setup do
     start_supervised!(Target.Supervisor)
@@ -10,83 +13,61 @@ defmodule Wayfarer.TargetTest do
     :ok
   end
 
-  describe "start_target/1" do
-    test "it returns an error when options are invalid" do
-      assert {:error, _} =
-               Target.start_target(scheme: :spdy, ip: {127, 0, 0, 1}, port: random_port())
-    end
-
+  describe "start_link/1" do
     test "it can start a target checker" do
       port = random_port()
-      assert {:ok, _pid} = Target.start_target(scheme: :http, ip: {127, 0, 0, 1}, port: port)
-    end
 
-    test "it becomes healthy when the target is ok" do
-      port = random_port()
-
-      HttpServer.start_link(port, 200, "OK")
-
-      assert {:ok, _pid} =
-               Target.start_target(
+      assert {:ok, pid} =
+               Target.start_link(
                  scheme: :http,
-                 ip: {127, 0, 0, 1},
+                 address: ~i"127.0.0.1",
                  port: port,
-                 health_check: [interval: 10]
+                 module: Support.Example
                )
 
-      Process.sleep(200)
-
-      assert {:ok, :healthy} = Target.Table.get_status(:http, {127, 0, 0, 1}, port)
+      assert {:ok, :initial} = Target.current_status(pid)
     end
 
-    test "it stays in initial state when the target is not ok" do
+    test "it becomes healthy when the target is okay" do
       port = random_port()
 
-      HttpServer.start_link(port, 500, "BANG!")
+      HttpServer.start_link(port, 200, "OK", self())
 
-      assert {:ok, _pid} =
-               Target.start_target(
+      assert {:ok, pid} =
+               Target.start_link(
                  scheme: :http,
-                 ip: {127, 0, 0, 1},
+                 address: ~i"127.0.0.1",
                  port: port,
-                 health_check: [interval: 10]
+                 module: Support.Example,
+                 health_checks: [[interval: 10, threshold: 3]]
                )
 
-      Process.sleep(200)
+      assert {:ok, :initial} = Target.current_status(pid)
 
-      assert {:ok, :initial} = Target.Table.get_status(:http, {127, 0, 0, 1}, port)
-    end
+      HttpServer.await_requests(3)
 
-    test "it can transitions from healthy -> unhealthy -> healthy when the server changes state" do
-      port = random_port()
-
-      {:ok, http} = HttpServer.start_link(port, 200, "OK")
-
-      assert {:ok, _pid} =
-               Target.start_target(
-                 scheme: :http,
-                 ip: {127, 0, 0, 1},
-                 port: port,
-                 health_check: [interval: 10]
-               )
-
-      Process.sleep(500)
-
-      assert {:ok, :healthy} = Target.Table.get_status(:http, {127, 0, 0, 1}, port)
-
-      GenServer.stop(http, :normal)
-
-      Process.sleep(250)
-
-      assert {:ok, :unhealthy} = Target.Table.get_status(:http, {127, 0, 0, 1}, port)
-
-      {:ok, http} = HttpServer.start_link(port, 200, "OK")
-
-      Process.sleep(500)
-
-      assert {:ok, :healthy} = Target.Table.get_status(:http, {127, 0, 0, 1}, port)
+      assert {:ok, :healthy} = Target.current_status(pid)
     end
   end
 
-  defp random_port, do: :rand.uniform(0xFFFF - 1000) + 1000
+  test "it becomes unhealthy when the target is not okay" do
+    port = random_port()
+
+    HttpServer.start_link(port, 500, "ISE", self())
+
+    assert {:ok, pid} =
+             Target.start_link(
+               scheme: :http,
+               address: ~i"127.0.0.1",
+               port: port,
+               module: Support.Example,
+               health_checks: [[interval: 10, threshold: 3]]
+             )
+
+    assert {:ok, :initial} = Target.current_status(pid)
+
+    HttpServer.await_requests(2)
+
+    assert {:ok, :unhealthy} = Target.current_status(pid)
+  end
 end
