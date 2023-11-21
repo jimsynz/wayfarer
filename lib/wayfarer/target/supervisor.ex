@@ -11,7 +11,8 @@ defmodule Wayfarer.Target.Supervisor do
       {Registry, keys: :unique, name: Wayfarer.Target.Registry},
       {DynamicSupervisor, name: Wayfarer.Target.DynamicSupervisor, strategy: :one_for_one},
       Wayfarer.Target.ActiveConnections,
-      Wayfarer.Target.TotalConnections
+      Wayfarer.Target.TotalConnections,
+      Wayfarer.Target.ConnectionRecycler
     ]
     |> Supervisor.init(strategy: :one_for_one)
   end

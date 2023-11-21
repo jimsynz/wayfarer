@@ -99,7 +99,7 @@ defmodule WayfarerTest do
         :ok
 
       {:ok, _} ->
-        Process.sleep(100)
+        Process.sleep(10)
         wait_for_target_state(key, state)
 
       {:error, reason} ->

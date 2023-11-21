@@ -96,6 +96,7 @@ defmodule Wayfarer.MixProject do
       {:mint, "~> 1.5"},
       {:nimble_options, "~> 1.0"},
       {:plug, "~> 1.15"},
+      {:semaphore, "~> 1.3"},
       {:spark, "~> 1.1"},
       {:telemetry, "~> 1.2"},
       {:websock, "~> 0.5"},

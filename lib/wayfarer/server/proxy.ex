@@ -6,7 +6,14 @@ defmodule Wayfarer.Server.Proxy do
 
   alias Mint.HTTP
   alias Plug.Conn
-  alias Wayfarer.{Router, Target.ActiveConnections, Target.TotalConnections}
+
+  alias Wayfarer.{
+    Router,
+    Target.ActiveConnections,
+    Target.ConnectionRecycler,
+    Target.TotalConnections
+  }
+
   require Logger
 
   @connect_timeout 5_000
@@ -17,16 +24,34 @@ defmodule Wayfarer.Server.Proxy do
   """
   @spec request(Conn.t(), Router.target()) :: Conn.t()
   def request(conn, {scheme, address, port} = target) do
-    with {:ok, mint} <-
-           HTTP.connect(scheme, address, port, hostname: conn.host, timeout: @connect_timeout),
+    with {:ok, mint} <- connect(scheme, address, port, conn.host),
          :ok <- ActiveConnections.connect(target),
          :ok <- TotalConnections.proxy_connect(target),
          {:ok, body, conn} <- read_request_body(conn),
          {:ok, mint, req} <- send_request(conn, mint, body),
-         {:ok, conn, _mint} <- proxy_responses(conn, mint, req) do
+         {:ok, conn, mint} <- proxy_responses(conn, mint, req),
+         :ok <- checkin(scheme, address, port, conn.host, mint) do
       conn
     else
       error -> handle_error(error, conn, target)
+    end
+  end
+
+  defp connect(scheme, address, port, hostname) do
+    with {:ok, mint} <- ConnectionRecycler.try_acquire(scheme, address, port, hostname) do
+      {:ok, mint}
+    else
+      :error -> HTTP.connect(scheme, address, port, hostname: hostname, timeout: @connect_timeout)
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  defp checkin(scheme, address, port, hostname, mint) do
+    if HTTP.open?(mint, :read_write) do
+      HTTP.set_mode(mint, :active)
+      ConnectionRecycler.checkin(scheme, address, port, hostname, mint)
+    else
+      :ok
     end
   end
 
@@ -180,9 +205,13 @@ defmodule Wayfarer.Server.Proxy do
           "#{:inet.ntoa(address)}:#{port}"
       end
 
+    headers = conn.req_headers |> Enum.reject(&(elem(&1, 0) == "connection"))
+
     [
-      {"forwarded", "by=#{listener};for=#{client};host=#{conn.host};proto=#{conn.scheme}"}
-      | conn.req_headers
+      {"forwarded", "by=#{listener};for=#{client};host=#{conn.host};proto=#{conn.scheme}"},
+      {"connection", "keep-alive"}
+      | headers
     ]
+    |> dbg()
   end
 end
