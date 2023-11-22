@@ -30,7 +30,7 @@ defmodule Wayfarer.Server.Proxy do
          {:ok, body, conn} <- read_request_body(conn),
          {:ok, mint, req} <- send_request(conn, mint, body),
          {:ok, conn, mint} <- proxy_responses(conn, mint, req),
-         :ok <- checkin(scheme, address, port, conn.host, mint) do
+         :ok <- ConnectionRecycler.checkin(scheme, address, port, conn.host, mint) do
       conn
     else
       error -> handle_error(error, conn, target)
@@ -38,20 +38,11 @@ defmodule Wayfarer.Server.Proxy do
   end
 
   defp connect(scheme, address, port, hostname) do
-    with {:ok, mint} <- ConnectionRecycler.try_acquire(scheme, address, port, hostname) do
+    with {:ok, mint} <- ConnectionRecycler.try_checkout(scheme, address, port, hostname) do
       {:ok, mint}
     else
       :error -> HTTP.connect(scheme, address, port, hostname: hostname, timeout: @connect_timeout)
       {:error, reason} -> {:error, reason}
-    end
-  end
-
-  defp checkin(scheme, address, port, hostname, mint) do
-    if HTTP.open?(mint, :read_write) do
-      HTTP.set_mode(mint, :active)
-      ConnectionRecycler.checkin(scheme, address, port, hostname, mint)
-    else
-      :ok
     end
   end
 
@@ -212,6 +203,5 @@ defmodule Wayfarer.Server.Proxy do
       {"connection", "keep-alive"}
       | headers
     ]
-    |> dbg()
   end
 end

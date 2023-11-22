@@ -24,36 +24,18 @@ defmodule Wayfarer.Target.ConnectionRecycler do
 
   @type state :: %{table: :ets.tid(), timer: :timer.tref()}
 
-  def try_acquire(scheme, address, port, hostname) do
+  def try_checkout(scheme, address, port, hostname) do
     if acquire_lock(scheme, address, port, hostname) do
-      # :ets.fun2ms(fn {{:http, {127, 0, 0, 1}, 80, "example.com"}, check_in_time, mint}
-      #                when check_in_time >= 123 ->
-      #   {check_in_time, mint}
-      # end)
-
-      horizon = System.monotonic_time(:millisecond) - @default_ttl_ms
-
-      match_spec = [
-        {{{scheme, address, port, hostname}, :"$1", :"$2"}, [{:>=, :"$1", horizon}],
-         [{{:"$1", :"$2"}}]}
-      ]
-
       result =
-        case :ets.select(__MODULE__, match_spec, 1) do
-          {[{checked_in_at, mint} | _], _} ->
-            :ets.delete_object(
-              __MODULE__,
-              {{scheme, address, port, hostname}, checked_in_at, mint}
-            )
+        with {:ok, mint} <- get_next_connection(scheme, address, port, hostname),
+             {:ok, mint} <- HTTP.controlling_process(mint, self()) |> dbg(),
+             {:ok, mint} <- HTTP.set_mode(mint, :active) do
+          dbg(mint: mint, open?: HTTP.open?(mint))
 
-            release_lock(scheme, address, port, hostname)
-
-            HTTP.controlling_process(mint, self())
-
-          _ ->
-            :error
-            release_lock(scheme, address, port, hostname)
+          {:ok, mint}
         end
+
+      release_lock(scheme, address, port, hostname)
 
       result
     else
@@ -61,22 +43,63 @@ defmodule Wayfarer.Target.ConnectionRecycler do
     end
   end
 
-  def checkin(scheme, address, port, hostname, mint) do
-    pid =
-      __MODULE__
-      |> Process.whereis()
+  defp get_next_connection(scheme, address, port, hostname) do
+    # :ets.fun2ms(fn {{:http, {127, 0, 0, 1}, 80, "example.com"}, check_in_time, mint}
+    #                when check_in_time >= 123 ->
+    #   {check_in_time, mint}
+    # end)
 
-    case HTTP.controlling_process(mint, pid) |> dbg() do
-      {:ok, mint} ->
-        :ets.insert(
+    horizon = System.monotonic_time(:millisecond) - @default_ttl_ms
+
+    match_spec = [
+      {{{scheme, address, port, hostname}, :"$1", :"$2"}, [{:>=, :"$1", horizon}],
+       [{{:"$1", :"$2"}}]}
+    ]
+
+    case :ets.select(__MODULE__, match_spec, 1) do
+      {[{checked_in_at, mint} | _], _} ->
+        :ets.delete_object(
           __MODULE__,
-          {{scheme, address, port, hostname}, System.monotonic_time(:millisecond), mint}
+          {{scheme, address, port, hostname}, checked_in_at, mint}
         )
 
-        :ok
+        # mint |> dbg()
+        # :erlang.port_info(mint.socket) |> dbg()
 
-      {:error, reason} ->
-        {:error, reason}
+        {:ok, mint}
+
+      _ ->
+        :error
+    end
+  end
+
+  def checkin(scheme, address, port, hostname, mint) do
+    if HTTP.open?(mint, :read_write) do
+      do_checkin(scheme, address, port, hostname, mint)
+    else
+      :ok
+    end
+  end
+
+  defp do_checkin(scheme, address, port, hostname, mint) do
+    pid = Process.whereis(__MODULE__)
+
+    unless pid, do: raise("This should never happen!")
+
+    self() |> dbg()
+    mint |> dbg()
+    :erlang.port_info(mint.socket) |> dbg()
+
+    Process.unlink(mint.socket)
+
+    with {:ok, mint} <- HTTP.set_mode(mint, :passive) do
+      #  {:ok, mint} <- HTTP.controlling_process(mint, pid) do
+      :ets.insert(
+        __MODULE__,
+        {{scheme, address, port, hostname}, System.monotonic_time(:millisecond), mint}
+      )
+
+      :ok
     end
   end
 
@@ -113,7 +136,7 @@ defmodule Wayfarer.Target.ConnectionRecycler do
   def handle_info(:tick, state) do
     # :ets.fun2ms(fn {_, checked_in_time, _} when checked_in_time < 123 -> true end)
 
-    IO.puts(:ets.info(__MODULE__, :size))
+    # IO.puts(:ets.info(__MODULE__, :size))
 
     horizon = System.monotonic_time(:millisecond) - @default_ttl_ms
     match_spec = [{{:_, :"$1", :_}, [{:<, :"$1", horizon}], [true]}]

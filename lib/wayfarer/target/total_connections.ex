@@ -96,9 +96,9 @@ defmodule Wayfarer.Target.TotalConnections do
   @impl true
   @spec handle_info(:tick, state) :: {:noreply, state}
   def handle_info(:tick, state) do
-    for {target, count} <- :ets.tab2list(state.table) do
-      Logger.debug("Total connections for #{inspect(target)}: #{count}")
-    end
+    # for {target, count} <- :ets.tab2list(state.table) do
+    #   Logger.debug("Total connections for #{inspect(target)}: #{count}")
+    # end
 
     {:noreply, state}
   end
