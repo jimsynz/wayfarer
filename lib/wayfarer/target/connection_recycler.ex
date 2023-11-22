@@ -19,93 +19,33 @@ defmodule Wayfarer.Target.ConnectionRecycler do
   them.
   """
   use GenServer
+  require Logger
 
   alias Mint.HTTP
 
   @type state :: %{table: :ets.tid(), timer: :timer.tref()}
 
-  def try_checkout(scheme, address, port, hostname) do
-    if acquire_lock(scheme, address, port, hostname) do
-      result =
-        with {:ok, mint} <- get_next_connection(scheme, address, port, hostname),
-             {:ok, mint} <- HTTP.controlling_process(mint, self()) |> dbg(),
-             {:ok, mint} <- HTTP.set_mode(mint, :active) do
-          dbg(mint: mint, open?: HTTP.open?(mint))
-
-          {:ok, mint}
-        end
-
-      release_lock(scheme, address, port, hostname)
-
-      result
-    else
-      :error
-    end
-  end
-
-  defp get_next_connection(scheme, address, port, hostname) do
-    # :ets.fun2ms(fn {{:http, {127, 0, 0, 1}, 80, "example.com"}, check_in_time, mint}
-    #                when check_in_time >= 123 ->
-    #   {check_in_time, mint}
-    # end)
-
-    horizon = System.monotonic_time(:millisecond) - @default_ttl_ms
-
-    match_spec = [
-      {{{scheme, address, port, hostname}, :"$1", :"$2"}, [{:>=, :"$1", horizon}],
-       [{{:"$1", :"$2"}}]}
-    ]
-
-    case :ets.select(__MODULE__, match_spec, 1) do
-      {[{checked_in_at, mint} | _], _} ->
-        :ets.delete_object(
-          __MODULE__,
-          {{scheme, address, port, hostname}, checked_in_at, mint}
-        )
-
-        # mint |> dbg()
-        # :erlang.port_info(mint.socket) |> dbg()
-
-        {:ok, mint}
-
-      _ ->
-        :error
-    end
+  def checkout(scheme, address, port, hostname) do
+    GenServer.call(
+      {:via, PartitionSupervisor, {__MODULE__, {scheme, address, port, hostname}}},
+      {:get_connection, scheme, address, port, hostname, self()}
+    )
   end
 
   def checkin(scheme, address, port, hostname, mint) do
     if HTTP.open?(mint, :read_write) do
-      do_checkin(scheme, address, port, hostname, mint)
-    else
-      :ok
-    end
-  end
-
-  defp do_checkin(scheme, address, port, hostname, mint) do
-    pid = Process.whereis(__MODULE__)
-
-    unless pid, do: raise("This should never happen!")
-
-    self() |> dbg()
-    mint |> dbg()
-    :erlang.port_info(mint.socket) |> dbg()
-
-    Process.unlink(mint.socket)
-
-    with {:ok, mint} <- HTTP.set_mode(mint, :passive) do
-      #  {:ok, mint} <- HTTP.controlling_process(mint, pid) do
-      :ets.insert(
-        __MODULE__,
-        {{scheme, address, port, hostname}, System.monotonic_time(:millisecond), mint}
+      GenServer.cast(
+        {:via, PartitionSupervisor, {__MODULE__, {scheme, address, port, hostname}}},
+        {:checkin, scheme, address, port, hostname, mint}
       )
-
+    else
       :ok
     end
   end
 
   @doc false
   @spec start_link(any) :: GenServer.on_start()
-  def start_link(arg), do: GenServer.start_link(__MODULE__, arg, name: __MODULE__)
+  def start_link(arg), do: GenServer.start_link(__MODULE__, arg)
 
   @doc false
   @impl true
@@ -113,15 +53,7 @@ defmodule Wayfarer.Target.ConnectionRecycler do
   def init(_) do
     case :timer.send_interval(@default_sweep_interval_ms, :tick) do
       {:ok, timer} ->
-        table =
-          __MODULE__
-          |> :ets.new([
-            :public,
-            :named_table,
-            :bag,
-            read_concurrency: true,
-            write_concurrency: true
-          ])
+        table = :ets.new(__MODULE__, [:bag])
 
         {:ok, %{table: table, timer: timer}}
 
@@ -146,19 +78,75 @@ defmodule Wayfarer.Target.ConnectionRecycler do
     {:noreply, state}
   end
 
-  defp acquire_lock(scheme, address, port, hostname, remaining \\ 15)
+  @doc false
+  @impl true
+  def handle_call({:get_connection, scheme, address, port, hostname, pid}, _from, state) do
+    reply =
+      with {:ok, mint} <- get_connection(state.table, scheme, address, port, hostname),
+           {:ok, mint} <- HTTP.controlling_process(mint, pid) do
+        HTTP.set_mode(mint, :active)
+      end
 
-  defp acquire_lock(_scheme, _address, _port, _hostname, 0), do: false
+    {:reply, reply, state}
+  end
 
-  defp acquire_lock(scheme, address, port, hostname, remaining) do
-    if Semaphore.acquire({__MODULE__, scheme, address, port, hostname}, 1) do
-      true
-    else
-      acquire_lock(scheme, address, port, hostname, remaining - 1)
+  @doc false
+  @impl true
+  def handle_cast({:checkin, scheme, address, port, hostname, mint}, state) do
+    case HTTP.set_mode(mint, :passive) do
+      {:ok, mint} ->
+        :ets.insert_new(
+          state.table,
+          {{scheme, address, port, hostname}, System.monotonic_time(:millisecond), mint}
+        )
+
+      {:error, reason} ->
+        Logger.debug("Error checking in #{inspect(reason)}")
+    end
+
+    {:noreply, state}
+  end
+
+  defp get_connection(table, scheme, address, port, hostname) do
+    case select_connection(table, scheme, address, port, hostname) do
+      {:ok, mint} ->
+        Logger.debug("Reusing connection #{inspect(mint)}")
+        {:ok, mint}
+
+      :error ->
+        Logger.debug("Creating new connection #{inspect({scheme, address, port, hostname})}")
+        HTTP.connect(scheme, address, port, hostname: hostname, timeout: 5000)
     end
   end
 
-  defp release_lock(scheme, address, port, hostname) do
-    Semaphore.release({__MODULE__, scheme, address, port, hostname})
+  defp select_connection(table, scheme, address, port, hostname) do
+    # :ets.fun2ms(fn {{:http, {127, 0, 0, 1}, 80, "example.com"}, check_in_time, mint}
+    #                when check_in_time >= 123 ->
+    #   {check_in_time, mint}
+    # end)
+
+    horizon = System.monotonic_time(:millisecond) - @default_ttl_ms
+
+    match_spec = [
+      {{{scheme, address, port, hostname}, :"$1", :"$2"}, [{:>=, :"$1", horizon}],
+       [{{:"$1", :"$2"}}]}
+    ]
+
+    case :ets.select(table, match_spec, 1) do
+      {[{checked_in_at, mint} | _], _} ->
+        :ets.delete_object(
+          table,
+          {{scheme, address, port, hostname}, checked_in_at, mint}
+        )
+
+        if HTTP.open?(mint, :read_write) do
+          {:ok, mint}
+        else
+          select_connection(table, scheme, address, port, hostname)
+        end
+
+      _ ->
+        :error
+    end
   end
 end

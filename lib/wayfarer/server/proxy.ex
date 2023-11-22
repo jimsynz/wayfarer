@@ -24,7 +24,7 @@ defmodule Wayfarer.Server.Proxy do
   """
   @spec request(Conn.t(), Router.target()) :: Conn.t()
   def request(conn, {scheme, address, port} = target) do
-    with {:ok, mint} <- connect(scheme, address, port, conn.host),
+    with {:ok, mint} <- ConnectionRecycler.checkout(scheme, address, port, conn.host),
          :ok <- ActiveConnections.connect(target),
          :ok <- TotalConnections.proxy_connect(target),
          {:ok, body, conn} <- read_request_body(conn),
@@ -34,15 +34,6 @@ defmodule Wayfarer.Server.Proxy do
       conn
     else
       error -> handle_error(error, conn, target)
-    end
-  end
-
-  defp connect(scheme, address, port, hostname) do
-    with {:ok, mint} <- ConnectionRecycler.try_checkout(scheme, address, port, hostname) do
-      {:ok, mint}
-    else
-      :error -> HTTP.connect(scheme, address, port, hostname: hostname, timeout: @connect_timeout)
-      {:error, reason} -> {:error, reason}
     end
   end
 
@@ -200,8 +191,10 @@ defmodule Wayfarer.Server.Proxy do
 
     [
       {"forwarded", "by=#{listener};for=#{client};host=#{conn.host};proto=#{conn.scheme}"},
-      {"connection", "keep-alive"}
+      {"connection", "keep-alive"},
+      {"keep-alive", "timeout=30"}
       | headers
     ]
+    |> dbg()
   end
 end

@@ -12,7 +12,8 @@ defmodule Wayfarer.Target.Supervisor do
       {DynamicSupervisor, name: Wayfarer.Target.DynamicSupervisor, strategy: :one_for_one},
       Wayfarer.Target.ActiveConnections,
       Wayfarer.Target.TotalConnections,
-      Wayfarer.Target.ConnectionRecycler
+      {PartitionSupervisor,
+       child_spec: Wayfarer.Target.ConnectionRecycler, name: Wayfarer.Target.ConnectionRecycler}
     ]
     |> Supervisor.init(strategy: :one_for_one)
   end

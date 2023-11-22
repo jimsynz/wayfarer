@@ -25,4 +25,24 @@ defmodule Support.Example do
       pattern "example.com"
     end
   end
+
+  config "Forgejo" do
+    listeners do
+      http "0.0.0.0", 8080
+    end
+
+    targets do
+      http "192.168.4.12", 80 do
+        health_checks do
+          check do
+            success_codes [301..301]
+          end
+        end
+      end
+    end
+
+    host_patterns do
+      pattern "code.harton.nz"
+    end
+  end
 end
