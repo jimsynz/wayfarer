@@ -1,6 +1,6 @@
 defmodule Wayfarer.Target.SelectorTest do
   @moduledoc false
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   use Plug.Test
   use Mimic
   use Support.PortTracker

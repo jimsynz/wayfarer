@@ -1,6 +1,6 @@
 defmodule Wayfarer.Server.PlugTest do
   @moduledoc false
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
   use Mimic
   use Plug.Test
   use Support.PortTracker
