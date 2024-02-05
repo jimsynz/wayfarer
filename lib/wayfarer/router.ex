@@ -6,8 +6,7 @@ defmodule Wayfarer.Router do
   This module provides a standardised interface to interact with a routing
   table.
   """
-  import Wayfarer.Utils
-  alias Wayfarer.Target.Selector
+  alias Wayfarer.{Target.Selector, Utils}
   require Selector
 
   @table_options [
@@ -50,10 +49,9 @@ defmodule Wayfarer.Router do
   Uniquely identifies a request target, either a remote http(s) server or a
   local `Plug`.
   """
-  @type target ::
-          {scheme, :inet.ip_address(), :socket.port_number()}
-          | {:plug, module}
-          | {:plug, {module, any}}
+  @type target :: http_target | plug_target
+  @type http_target :: {scheme, :inet.ip_address(), :socket.port_number()}
+  @type plug_target :: {:plug, module} | {:plug, {module, any}}
 
   @typedoc """
   The algorithm used to select which target to forward requests to (when there
@@ -142,11 +140,13 @@ defmodule Wayfarer.Router do
   Change a target's health state.
   """
   @spec update_target_health_status(:ets.tid(), target, health) :: :ok
-  def update_target_health_status(table, {scheme, address, port}, status) do
+  def update_target_health_status(table, target, status) do
     # Match spec generated using:
     # :ets.fun2ms(fn {listener, host_pattern, {:http, {192, 168, 4, 26}, 80}, algorithm, _} ->
     #   {listener, host_pattern, {:http, {192, 168, 4, 26}, 80}, algorithm, :healthy}
     # end)
+
+    {:ok, {scheme, address, port}} = Utils.sanitise_target(target)
 
     match_spec = [
       {{:"$1", :"$2", {scheme, address, port}, :"$3", :_}, [],
@@ -266,16 +266,7 @@ defmodule Wayfarer.Router do
      )}
   end
 
-  defp sanitise_listener({scheme, address, port}) do
-    with {:ok, scheme} <- sanitise_scheme(scheme),
-         {:ok, address} <- sanitise_ip_address(address),
-         {:ok, port} <- sanitise_port(port) do
-      {:ok, {scheme, address, port}}
-    end
-  end
-
-  defp sanitise_listener(listener),
-    do: {:error, ArgumentError.exception(message: "Not a valid listener: `#{inspect(listener)}")}
+  defp sanitise_listener(listener), do: Utils.sanitise_target(listener)
 
   defp sanitise_target({:plug, module}), do: sanitise_target({:plug, module, []})
 
@@ -290,7 +281,8 @@ defmodule Wayfarer.Router do
     end
   end
 
-  defp sanitise_target({scheme, address, port}), do: sanitise_listener({scheme, address, port})
+  defp sanitise_target({scheme, address, port}),
+    do: Utils.sanitise_target({scheme, address, port})
 
   defp sanitise_target(target),
     do: {:error, ArgumentError.exception(message: "Not a valid target: `#{inspect(target)}")}

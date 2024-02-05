@@ -39,6 +39,8 @@ defmodule Wayfarer.Target.ActiveConnections do
     size = :ets.info(state.table, :size)
     Logger.debug("Active connections: #{size}")
 
+    dbg(:ets.tab2list(state.table))
+
     {:noreply, state}
   end
 
@@ -60,6 +62,7 @@ defmodule Wayfarer.Target.ActiveConnections do
   """
   @spec connect(Router.target()) :: :ok
   def connect(target) do
+    {:ok, target} = Utils.sanitise_target(target)
     :ets.insert(__MODULE__, {target, self(), System.monotonic_time()})
     GenServer.cast(__MODULE__, {:monitor, self()})
   end
@@ -69,6 +72,7 @@ defmodule Wayfarer.Target.ActiveConnections do
   """
   @spec disconnect(Router.target()) :: :ok
   def disconnect(target) do
+    {:ok, target} = Utils.sanitise_target(target)
     :ets.match_delete(__MODULE__, {target, self(), :_})
     :ok
   end
@@ -82,7 +86,11 @@ defmodule Wayfarer.Target.ActiveConnections do
   def request_count(targets) do
     # :ets.fun2ms(fn {target, _, _} when target in [:targeta, :targetb] -> target end)
 
-    targets = List.wrap(targets)
+    {:ok, targets} =
+      targets
+      |> List.wrap()
+      |> Utils.sanitise_targets()
+
     target_guard = Utils.targets_to_ms_guard(:"$1", targets)
     match_spec = [{{:"$1", :_, :_}, target_guard, [:"$1"]}]
 
@@ -97,6 +105,11 @@ defmodule Wayfarer.Target.ActiveConnections do
   @spec last_request_time([Router.target()]) :: %{Router.target() => non_neg_integer()}
   def last_request_time(targets) do
     # :ets.fun2ms(fn {target, _, t} when target in [:targeta, :targetb] -> {target, t} end)
+
+    {:ok, targets} =
+      targets
+      |> List.wrap()
+      |> Utils.sanitise_targets()
 
     target_guard = Utils.targets_to_ms_guard(:"$1", targets)
     match_spec = [{{:"$1", :_, :"$2"}, target_guard, [{{:"$1", :"$2"}}]}]

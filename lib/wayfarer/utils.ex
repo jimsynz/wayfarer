@@ -6,6 +6,36 @@ defmodule Wayfarer.Utils do
   @type address_input :: IP.Address.t() | String.t() | :inet.ip_address()
   @type port_number :: 1..0xFFFF
   @type scheme :: :http | :https
+  @type target :: {scheme, address_input, port_number}
+
+  @doc """
+  Sanitise a target tuple by applying `sanitise_scheme/1`,
+  `sanitise_ip_address/1` and `sanitise_port/1` in sequence.
+  """
+  @spec sanitise_target(target) :: {:ok, target} | {:error, any}
+  def sanitise_target({scheme, address, port}) do
+    with {:ok, scheme} <- sanitise_scheme(scheme),
+         {:ok, address} <- sanitise_ip_address(address),
+         {:ok, port} <- sanitise_port(port) do
+      {:ok, {scheme, address, port}}
+    end
+  end
+
+  def sanitise_target(invalid), do: {:error, "Invalid target #{inspect(invalid)}"}
+
+  @doc """
+  Sanitise an enumerable of targets by applying `sanitise_target/1` to them all.
+  """
+  @spec sanitise_targets(Enumerable.t(target)) :: {:ok, [target]} | {:error, any}
+  def sanitise_targets(targets) do
+    targets
+    |> Enum.reduce_while({:ok, []}, fn target, {:ok, targets} ->
+      case sanitise_target(target) do
+        {:ok, target} -> {:cont, {:ok, [target | targets]}}
+        {:error, reason} -> {:halt, {:error, reason}}
+      end
+    end)
+  end
 
   @doc """
   Verify an IP address and convert it into a tuple.

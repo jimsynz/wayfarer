@@ -83,6 +83,34 @@ defmodule Wayfarer.Server do
 
   @type options :: keyword
 
+  @type target_options ::
+          [
+            unquote(
+              Dsl.Target.schema()
+              |> OptionsHelpers.sanitize_schema()
+              |> NimbleOptions.option_typespec()
+            )
+          ]
+
+  @doc """
+  Add a new target to the server.
+  """
+  @spec add_target(GenServer.server(), target_options) :: :ok | {:error, any}
+  def add_target(server, target) do
+    case OptionsHelpers.validate(target, Dsl.Target.schema()) do
+      {:ok, options} -> GenServer.call(server, {:add_target, options})
+      {:error, reason} -> {:error, reason}
+    end
+  end
+
+  @doc """
+  Stop new connections from being sent to the target.
+  """
+  @spec drain_target(GenServer.server(), Router.http_target()) :: :ok | {:error, any}
+  def drain_target(server, {scheme, address, port}) do
+    GenServer.cast(server, {:target_status_change, scheme, address, port, :draining})
+  end
+
   @doc false
   @spec __using__(any) :: Macro.output()
   defmacro __using__(opts) do
@@ -152,7 +180,8 @@ defmodule Wayfarer.Server do
          initial_routing_table <- Keyword.get(options, :routing_table, []),
          {:ok, routing_table} <- Router.init(module),
          :ok <- Router.import_routes(routing_table, initial_routing_table),
-         state <- %{module: module, routing_table: routing_table},
+         {:ok, tref} <- :timer.send_interval(1_000, :tick),
+         state <- %{module: module, routing_table: routing_table, draining: %{}, timer: tref},
          {:ok, state} <- start_listeners(listeners, state),
          {:ok, state} <- start_targets(targets, state) do
       {:ok, state}
@@ -166,12 +195,31 @@ defmodule Wayfarer.Server do
   @impl true
   @spec handle_cast(any, map) :: {:noreply, map}
   def handle_cast({:target_status_change, scheme, address, port, status}, state) do
-    Router.update_target_health_status(
-      state.routing_table,
-      {scheme, IP.Address.to_tuple(address), port},
-      status
-    )
+    :ok =
+      Router.update_target_health_status(
+        state.routing_table,
+        {scheme, address, port},
+        status
+      )
 
+    {:noreply, state}
+  end
+
+  @doc false
+  @impl true
+  @spec handle_call(any, GenServer.from(), map) :: {:reply, :ok | {:error, any}, map}
+  def handle_call({:add_target, target}, _from, state) do
+    case start_targets([target], state) do
+      {:ok, state} -> {:reply, :ok, state}
+      {:error, reason} -> {:reply, {:error, reason}, state}
+    end
+  end
+
+  @doc false
+  @impl true
+  def handle_info(:tick, state) do
+    # Iterate all targets for this server and terminate any draining ones with
+    # no active connections.
     {:noreply, state}
   end
 
@@ -214,6 +262,9 @@ defmodule Wayfarer.Server do
       end
     end)
   end
+
+  defp terminate_target(target),
+    do: DynamicSupervisor.terminate_child(Target.DynamicSupervisor, {Target, target})
 
   defp assert_is_server(module) do
     if Spark.implements_behaviour?(module, __MODULE__) do

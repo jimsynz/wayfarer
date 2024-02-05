@@ -9,7 +9,7 @@ defmodule Support.Example do
     end
 
     targets do
-      http "127.0.0.1", 8082
+      # http "127.0.0.1", 8082
 
       http "192.168.4.26", 80
     end

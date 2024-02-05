@@ -8,6 +8,7 @@ defmodule WayfarerTest do
 
   use Support.HttpRequest
   use Support.PortTracker
+  use Support.Utils
 
   import IP.Sigil
 
@@ -90,20 +91,6 @@ defmodule WayfarerTest do
                ]
                |> TotalConnections.proxy_count()
                |> Enum.map(&elem(&1, 1))
-    end
-  end
-
-  defp wait_for_target_state(key, state) do
-    case Wayfarer.Target.current_status(key) do
-      {:ok, ^state} ->
-        :ok
-
-      {:ok, _} ->
-        Process.sleep(100)
-        wait_for_target_state(key, state)
-
-      {:error, reason} ->
-        raise reason
     end
   end
 end
