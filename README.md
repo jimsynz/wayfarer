@@ -19,7 +19,7 @@ dependency in your app:
 ```elixir
 def deps do
   [
-    {:wayfarer, git: "https://code.harton.nz/james/wayfarer.git", tag: "v0.1.0"}
+    {:wayfarer, git: "https://harton.dev/james/wayfarer.git", tag: "v0.1.0"}
   ]
 end
 ```

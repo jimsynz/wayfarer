@@ -18,8 +18,8 @@ defmodule Wayfarer.MixProject do
       deps: deps(),
       description: @moduledoc,
       package: package(),
-      source_url: "https://code.harton.nz/james/wayfarer",
-      homepage_url: "https://code.harton.nz/james/wayfarer",
+      source_url: "https://harton.dev/james/wayfarer",
+      homepage_url: "https://harton.dev/james/wayfarer",
       aliases: aliases(),
       dialyzer: [plt_add_apps: []],
       docs: [
@@ -27,8 +27,7 @@ defmodule Wayfarer.MixProject do
         formatters: ["html"],
         extra_section: "GUIDES",
         filter_modules: ~r/^Elixir.Wayfarer/,
-        source_url_pattern:
-          "https://code.harton.nz/james/wayfarer/src/branch/main/%{path}#L%{line}",
+        source_url_pattern: "https://harton.dev/james/wayfarer/src/branch/main/%{path}#L%{line}",
         spark: [
           extensions: [
             %{
@@ -71,9 +70,9 @@ defmodule Wayfarer.MixProject do
       maintainers: ["James Harton <james@harton.nz>"],
       licenses: ["HL3-FULL"],
       links: %{
-        "Source" => "https://code.harton.nz/james/wayfarer"
+        "Source" => "https://harton.dev/james/wayfarer"
       },
-      source_url: "https://code.harton.nz/james/wayfarer"
+      source_url: "https://harton.dev/james/wayfarer"
     ]
   end
 
