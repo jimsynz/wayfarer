@@ -3,7 +3,7 @@ defmodule Wayfarer.Target do
 
   use GenServer, restart: :transient
   require Logger
-  alias Spark.OptionsHelpers
+  alias Spark.Options
   alias Wayfarer.{Dsl.HealthCheck, Router, Server, Target}
   import Wayfarer.Utils
 
@@ -61,7 +61,7 @@ defmodule Wayfarer.Target do
 
   ## Options
 
-  #{OptionsHelpers.docs(@options_schema)}
+  #{Options.docs(@options_schema)}
   """
 
   @type key :: {module, :http | :https, IP.Address.t(), :socket.port_number()}
@@ -90,7 +90,7 @@ defmodule Wayfarer.Target do
   @doc false
   @impl true
   def init(options) do
-    with {:ok, options} <- OptionsHelpers.validate(options, @options_schema),
+    with {:ok, options} <- Options.validate(options, @options_schema),
          {:ok, uri} <- to_uri(options[:scheme], options[:address], options[:port]) do
       target = options |> Keyword.take(~w[scheme address port]a) |> Map.new()
       module = options[:module]

@@ -1,5 +1,5 @@
 defmodule Wayfarer.Server do
-  alias Spark.OptionsHelpers
+  alias Spark.Options
   alias Wayfarer.{Dsl, Listener, Router, Server, Target}
   use GenServer
   require Logger
@@ -78,7 +78,7 @@ defmodule Wayfarer.Server do
 
   ## Options
 
-  #{OptionsHelpers.docs(@options_schema)}
+  #{Options.docs(@options_schema)}
   """
 
   @type options :: keyword
@@ -145,7 +145,7 @@ defmodule Wayfarer.Server do
   @impl true
   @spec init(options) :: {:ok, map} | {:stop, any}
   def init(options) do
-    with {:ok, options} <- OptionsHelpers.validate(options, @options_schema),
+    with {:ok, options} <- Options.validate(options, @options_schema),
          {:ok, module} <- assert_is_server(options[:module]),
          listeners <- Keyword.get(options, :listeners, []),
          targets <- Keyword.get(options, :targets, []),

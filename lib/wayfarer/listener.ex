@@ -3,7 +3,7 @@ defmodule Wayfarer.Listener do
 
   use GenServer, restart: :transient
   require Logger
-  alias Spark.OptionsHelpers
+  alias Spark.Options
   import Wayfarer.Utils
 
   @options_schema [
@@ -90,7 +90,7 @@ defmodule Wayfarer.Listener do
 
   ## Options
 
-  #{OptionsHelpers.docs(@options_schema)}
+  #{Options.docs(@options_schema)}
   """
 
   @doc false
@@ -126,14 +126,14 @@ defmodule Wayfarer.Listener do
       {:ok, :https} ->
         schema =
           @options_schema
-          |> OptionsHelpers.make_required!(:keyfile)
-          |> OptionsHelpers.make_required!(:certfile)
-          |> OptionsHelpers.make_required!(:cipher_suite)
+          |> Options.Helpers.make_required!(:keyfile)
+          |> Options.Helpers.make_required!(:certfile)
+          |> Options.Helpers.make_required!(:cipher_suite)
 
-        OptionsHelpers.validate(options, schema)
+        Options.validate(options, schema)
 
       _ ->
-        OptionsHelpers.validate(options, @options_schema)
+        Options.validate(options, @options_schema)
     end
   end
 
