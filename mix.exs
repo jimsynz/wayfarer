@@ -70,7 +70,10 @@ defmodule Wayfarer.MixProject do
       maintainers: ["James Harton <james@harton.nz>"],
       licenses: ["HL3-FULL"],
       links: %{
-        "Source" => "https://harton.dev/james/wayfarer"
+        "Source" => "https://harton.dev/james/wayfarer",
+        "GitHub" => "https://github.com/jimsynz/wayfarer",
+        "Changelog" => "https://docs.harton.nz/james/wayfarer/changelog.html",
+        "Sponsor" => "https://github.com/sponsors/jimsynz"
       },
       source_url: "https://harton.dev/james/wayfarer"
     ]
