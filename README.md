@@ -26,6 +26,12 @@ end
 
 Documentation for `main` is always available on [my docs site](https://docs.harton.nz/james/wayfarer/Wayfarer.html).
 
+## Github Mirror
+
+This repository is mirrored [on Github](https://github.com/jimsynz/angle)
+from it's primary location [on my Forejo instance](https://harton.dev/james/angle).
+Feel free to raise issues and open PRs on Github.
+
 ## License
 
 This software is licensed under the terms of the
