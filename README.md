@@ -1,6 +1,6 @@
 # Wayfarer
 
-[![Build Status](https://drone.harton.nz/api/badges/james/wayfarer/status.svg?ref=refs/heads/main)](https://drone.harton.nz/james/wayfarer)
+[![Build Status](https://drone.harton.dev/api/badges/james/wayfarer/status.svg?ref=refs/heads/main)](https://drone.harton.dev/james/wayfarer)
 [![Hippocratic License HL3-FULL](https://img.shields.io/static/v1?label=Hippocratic%20License&message=HL3-FULL&labelColor=5e2751&color=bc8c3d)](https://firstdonoharm.dev/version/3/0/full.html)
 
 Wayfarer is a runtime-configurable HTTP reverse proxy using
@@ -13,23 +13,25 @@ Wayfarer is yet to handle it's first HTTP request. Please hold.
 
 ## Installation
 
-Wayfarer is not yet available on Hex, so you will need to add it as a Git
-dependency in your app:
+Wayfarer is [available in Hex](https://hex.pm/packages/wayfarer), the package
+can be installed by adding `wayfarer` to your list of dependencies in `mix.exs`:
 
 ```elixir
 def deps do
   [
-    {:wayfarer, git: "https://harton.dev/james/wayfarer.git", tag: "v0.1.0"}
+    {:wayfarer, "~> 0.4.0"}
   ]
 end
 ```
 
-Documentation for `main` is always available on [my docs site](https://docs.harton.nz/james/wayfarer/Wayfarer.html).
+Documentation for the latest release can be found on
+[HexDocs](https://hexdocs.pm/wayfarer) and for the `main` branch on
+[docs.harton.nz](https://docs.harton.nz/james/wayfarer).
 
 ## Github Mirror
 
-This repository is mirrored [on Github](https://github.com/jimsynz/angle)
-from it's primary location [on my Forejo instance](https://harton.dev/james/angle).
+This repository is mirrored [on Github](https://github.com/jimsynz/wayfarer)
+from it's primary location [on my Forejo instance](https://harton.dev/james/wayfarer).
 Feel free to raise issues and open PRs on Github.
 
 ## License
