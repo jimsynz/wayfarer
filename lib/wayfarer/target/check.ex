@@ -52,8 +52,8 @@ defmodule Wayfarer.Target.Check do
       :unknown ->
         check_failed(state, "Received unknown message: `#{inspect(message)}`")
 
-      {:error, reason} ->
-        check_failed(state, reason)
+      {:error, _conn, error, _responses} ->
+        check_failed(state, error)
     end
   end
 
