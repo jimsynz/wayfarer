@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.4.1](https://harton.dev/james/wayfarer/compare/v0.4.0...v0.4.1) (2024-06-23)
+
+
+
+
+### Bug Fixes:
+
+* incorrect handling of Mint stream failure.
+
 ## [v0.4.0](https://harton.dev/james/wayfarer/compare/v0.3.0...v0.4.0) (2023-11-19)
 
 

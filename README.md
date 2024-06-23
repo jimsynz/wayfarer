@@ -19,7 +19,7 @@ can be installed by adding `wayfarer` to your list of dependencies in `mix.exs`:
 ```elixir
 def deps do
   [
-    {:wayfarer, "~> 0.4.0"}
+    {:wayfarer, "~> 0.4.1"}
   ]
 end
 ```
