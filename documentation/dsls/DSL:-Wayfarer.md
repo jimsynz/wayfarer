@@ -567,7 +567,6 @@ http address, port
 
 | Name | Type | Default | Docs |
 |------|------|---------|------|
-| [`scheme`](#wayfarer-config-listeners-http-scheme){: #wayfarer-config-listeners-http-scheme .spark-required} | `:http \| :https` |  | The listening protocol. |
 | [`name`](#wayfarer-config-listeners-http-name){: #wayfarer-config-listeners-http-name } | `nil \| String.t` |  | A unique name for the listener (defaults to the URI). |
 | [`http_1_options`](#wayfarer-config-listeners-http-http_1_options){: #wayfarer-config-listeners-http-http_1_options } | `keyword` | `[]` | Options to configure the HTTP/1 stack in Bandit. |
 | [`http_2_options`](#wayfarer-config-listeners-http-http_2_options){: #wayfarer-config-listeners-http-http_2_options } | `keyword` | `[]` | Options to configure the HTTP/2 stack in Bandit. |
@@ -604,7 +603,6 @@ https address, port
 
 | Name | Type | Default | Docs |
 |------|------|---------|------|
-| [`scheme`](#wayfarer-config-listeners-https-scheme){: #wayfarer-config-listeners-https-scheme .spark-required} | `:http \| :https` |  | The listening protocol. |
 | [`name`](#wayfarer-config-listeners-https-name){: #wayfarer-config-listeners-https-name } | `nil \| String.t` |  | A unique name for the listener (defaults to the URI). |
 | [`http_1_options`](#wayfarer-config-listeners-https-http_1_options){: #wayfarer-config-listeners-https-http_1_options } | `keyword` | `[]` | Options to configure the HTTP/1 stack in Bandit. |
 | [`http_2_options`](#wayfarer-config-listeners-https-http_2_options){: #wayfarer-config-listeners-https-http_2_options } | `keyword` | `[]` | Options to configure the HTTP/2 stack in Bandit. |
