@@ -9,7 +9,8 @@ Wayfarer is a runtime-configurable HTTP reverse proxy using
 
 ## Status
 
-Wayfarer is yet to handle it's first HTTP request. Please hold.
+Wayfarer is able to proxy HTTP/1, HTTP/2 and WebSocket requests. There are
+probably still edge cases and bugs, but it can be used.
 
 ## Installation
 
