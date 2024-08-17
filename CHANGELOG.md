@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.5.0](https://harton.dev/james/wayfarer/compare/v0.4.0...v0.5.0) (2024-08-17)
+
+
+
+
+### Features:
+
+* Add support for proxying websockets.
+
 ## [v0.4.1](https://harton.dev/james/wayfarer/compare/v0.4.0...v0.4.1) (2024-06-23)
 
 
