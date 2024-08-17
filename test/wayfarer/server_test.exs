@@ -54,7 +54,7 @@ defmodule Wayfarer.ServerTest do
                  routing_table: [
                    {
                      {:http, ~i"127.0.0.1", listen_port},
-                     {:http, ~i"127.0.0.1", target_port},
+                     {:http, ~i"127.0.0.1", target_port, :auto},
                      ["example.com"],
                      :round_robin
                    }
@@ -63,7 +63,7 @@ defmodule Wayfarer.ServerTest do
 
       assert :ets.tab2list(Support.Example) == [
                {{:http, {127, 0, 0, 1}, listen_port}, {"example", "com"},
-                {:http, {127, 0, 0, 1}, target_port}, :round_robin, :initial}
+                {:http, {127, 0, 0, 1}, target_port, :auto}, :round_robin, :initial}
              ]
     end
   end

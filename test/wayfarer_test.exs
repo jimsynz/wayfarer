@@ -51,9 +51,9 @@ defmodule WayfarerTest do
             ]
           ],
           routing_table: [
-            {{:http, ~i"127.0.0.1", listener_port}, {:http, ~i"127.0.0.1", target0_port},
+            {{:http, ~i"127.0.0.1", listener_port}, {:http, ~i"127.0.0.1", target0_port, :auto},
              ["www.example.com"], :round_robin},
-            {{:http, ~i"127.0.0.1", listener_port}, {:http, ~i"127.0.0.1", target1_port},
+            {{:http, ~i"127.0.0.1", listener_port}, {:http, ~i"127.0.0.1", target1_port, :auto},
              ["www.example.com"], :round_robin}
           ]
         )
@@ -69,8 +69,8 @@ defmodule WayfarerTest do
 
       assert [1, 1] =
                [
-                 {:http, {127, 0, 0, 1}, target0_port},
-                 {:http, {127, 0, 0, 1}, target1_port}
+                 {:http, {127, 0, 0, 1}, target0_port, :auto},
+                 {:http, {127, 0, 0, 1}, target1_port, :auto}
                ]
                |> TotalConnections.proxy_count()
                |> Enum.map(&elem(&1, 1))
@@ -85,8 +85,8 @@ defmodule WayfarerTest do
 
       assert [11, 11] =
                [
-                 {:http, {127, 0, 0, 1}, target0_port},
-                 {:http, {127, 0, 0, 1}, target1_port}
+                 {:http, {127, 0, 0, 1}, target0_port, :auto},
+                 {:http, {127, 0, 0, 1}, target1_port, :auto}
                ]
                |> TotalConnections.proxy_count()
                |> Enum.map(&elem(&1, 1))

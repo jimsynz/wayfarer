@@ -38,7 +38,12 @@ spark_locals_without_parens = [
   targets: 1,
   thousand_island_options: 1,
   threshold: 1,
-  websocket_options: 1
+  transport: 1,
+  websocket_options: 1,
+  ws: 2,
+  ws: 3,
+  wss: 2,
+  wss: 3
 ]
 
 [

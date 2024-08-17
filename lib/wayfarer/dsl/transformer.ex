@@ -98,7 +98,7 @@ defmodule Wayfarer.Dsl.Transformer do
         {target.scheme, target.module}
 
       target ->
-        {target.scheme, IP.Address.to_tuple(target.address), target.port}
+        {target.scheme, IP.Address.to_tuple(target.address), target.port, target.transport}
     end)
   end
 
@@ -113,7 +113,7 @@ defmodule Wayfarer.Dsl.Transformer do
             |> Map.drop([:address, :health_checks, :port, :uri])
             |> Enum.to_list()
 
-          target when target.scheme in [:http, :https] ->
+          target when target.scheme in [:http, :https, :ws, :wss] ->
             health_checks =
               target.health_checks.health_checks
               |> Enum.map(&HealthCheck.to_options/1)

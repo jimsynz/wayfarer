@@ -49,6 +49,7 @@ defmodule Wayfarer.Server.ProxyTest do
 
     HTTP
     |> stub(:connect, fn _, _, _, _ -> {:ok, :fake_conn} end)
+    |> stub(:stream_request_body, fn mint, _, _ -> {:ok, mint} end)
     |> stub(:request, fn mint, _, _, _, _ ->
       send(self(), :ignore)
       {:ok, mint, req}
@@ -59,7 +60,7 @@ defmodule Wayfarer.Server.ProxyTest do
 
   describe "request/2" do
     test "it opens an HTTP connection to the target and sends the request", %{conn: conn} do
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
       req = make_ref()
 
       HTTP
@@ -72,6 +73,7 @@ defmodule Wayfarer.Server.ProxyTest do
 
         {:ok, :fake_conn}
       end)
+      |> expect(:stream_request_body, 2, fn mint, _, _ -> {:ok, mint} end)
       |> expect(:request, fn mint, _, _, _, _ ->
         send(self(), :ignore)
         {:ok, mint, req}
@@ -85,7 +87,7 @@ defmodule Wayfarer.Server.ProxyTest do
     end
 
     test "it records the outgoing connection", %{conn: conn} do
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
 
       ActiveConnections
       |> expect(:connect, fn ^target -> :ok end)
@@ -103,7 +105,7 @@ defmodule Wayfarer.Server.ProxyTest do
         {:error, %Mint.TransportError{reason: :protocol_not_negotiated}}
       end)
 
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
       assert conn = Proxy.request(conn, target)
       assert conn.status == 502
     end
@@ -116,7 +118,7 @@ defmodule Wayfarer.Server.ProxyTest do
         {:error, %Mint.TransportError{reason: :timeout}}
       end)
 
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
       assert conn = Proxy.request(conn, target)
       assert conn.status == 504
     end
@@ -141,7 +143,7 @@ defmodule Wayfarer.Server.ProxyTest do
         {:error, :ignore}
       end)
 
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
       Proxy.request(conn, target)
     end
 
@@ -176,7 +178,7 @@ defmodule Wayfarer.Server.ProxyTest do
         {:error, :ignore}
       end)
 
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
       Proxy.request(conn, target)
     end
 
@@ -205,7 +207,7 @@ defmodule Wayfarer.Server.ProxyTest do
         {:error, :ignore}
       end)
 
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
       Proxy.request(conn, target)
     end
   end

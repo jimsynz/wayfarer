@@ -52,7 +52,7 @@ defmodule Wayfarer.Server.PlugTest do
 
     test "it looks for healthy targets in the router" do
       listener = {:http, {127, 0, 0, 1}, random_port()}
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
 
       {:ok, _} = HttpServer.start_link(elem(target, 2), 200, "OK")
 
@@ -76,7 +76,7 @@ defmodule Wayfarer.Server.PlugTest do
 
     test "it selects a target to proxy to" do
       listener = {:http, {127, 0, 0, 1}, random_port()}
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
 
       {:ok, _} = HttpServer.start_link(elem(target, 2), 200, "OK")
 

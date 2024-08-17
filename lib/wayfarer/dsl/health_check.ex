@@ -85,7 +85,7 @@ defmodule Wayfarer.Dsl.HealthCheck do
       doc: "Path"
     ],
     success_codes: [
-      type: {:wrap_list, {:struct, Range}},
+      type: {:wrap_list, {:or, [{:struct, Range}, {:in, 100..500}]}},
       required: false,
       default: @defaults[:success_codes],
       doc: "HTTP status codes which are considered successful."
@@ -125,22 +125,34 @@ defmodule Wayfarer.Dsl.HealthCheck do
   @doc false
   @spec transform(t) :: {:ok, t} | {:error, any}
   def transform(check) do
-    with :ok <- verify_success_codes(check.success_codes) do
-      maybe_set_name(check)
+    with {:ok, success_codes} <- transform_success_codes(check.success_codes) do
+      maybe_set_name(%{check | success_codes: success_codes})
     end
   end
 
+  defguardp is_valid_status_code?(code) when is_integer(code) and code >= 100 and code <= 599
+
   defguardp is_valid_range?(range)
-            when is_struct(range, Range) and is_integer(range.first) and range.first >= 100 and
-                   is_integer(range.last) and range.last <= 500
+            when is_struct(range, Range) and is_valid_status_code?(range.first) and
+                   is_valid_status_code?(range.last)
 
-  defp verify_success_codes(range) when is_valid_range?(range), do: :ok
-  defp verify_success_codes([]), do: :ok
+  defp transform_success_codes(range) when is_valid_range?(range), do: {:ok, [range]}
+  defp transform_success_codes([]), do: {:ok, []}
 
-  defp verify_success_codes([head | tail]) when is_valid_range?(head),
-    do: verify_success_codes(tail)
+  defp transform_success_codes([head | tail]) when is_valid_range?(head) do
+    with {:ok, tail} <- transform_success_codes(tail) do
+      {:ok, [head | tail]}
+    end
+  end
 
-  defp verify_success_codes([range | _]),
+  defp transform_success_codes([head | tail])
+       when is_integer(head) and is_valid_status_code?(head) do
+    with {:ok, tail} <- transform_success_codes(tail) do
+      {:ok, [head..head | tail]}
+    end
+  end
+
+  defp transform_success_codes([range | _]),
     do: {:error, "Value `#{inspect(range)}` is not valid. Must be a range between 100..599"}
 
   defp maybe_set_name(check) when is_binary(check.name), do: {:ok, check}

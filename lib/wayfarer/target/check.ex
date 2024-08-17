@@ -4,7 +4,7 @@ defmodule Wayfarer.Target.Check do
   """
 
   use GenServer, restart: :transient
-  alias Mint.HTTP
+  alias Mint.{HTTP, HTTP1, HTTP2, WebSocket}
   alias Wayfarer.{Target, Target.TotalConnections}
   require Logger
 
@@ -36,8 +36,11 @@ defmodule Wayfarer.Target.Check do
   def handle_info(:timeout, state), do: check_failed(state, "request timeout expired.")
 
   def handle_info(message, state) do
-    with {:ok, conn, responses} <- Mint.HTTP.stream(state.conn, message),
-         :ok <- TotalConnections.health_check_connect({state.scheme, state.address, state.port}),
+    with {:ok, conn, responses} <- WebSocket.stream(state.conn, message),
+         :ok <-
+           TotalConnections.health_check_connect(
+             {state.scheme, state.address, state.port, state.transport}
+           ),
          {:ok, status} <- get_status_response(conn, responses) do
       if Enum.any?(state.success_codes, &Enum.member?(&1, status)) do
         Target.check_passed(state.ref)
@@ -57,15 +60,40 @@ defmodule Wayfarer.Target.Check do
     end
   end
 
-  defp connect(state),
-    do:
-      HTTP.connect(state.scheme, state.address, state.port,
-        timeout: state.connect_timeout,
-        hostname: state.hostname
-      )
+  defp connect(state) when state.scheme == :ws,
+    do: connect(%{state | scheme: :http})
 
-  defp request(state),
-    do: HTTP.request(state.conn, state.method, state.path, state.headers, nil)
+  defp connect(state) when state.scheme == :wss,
+    do: connect(%{state | scheme: :https})
+
+  defp connect(state) when state.transport == :http1 do
+    HTTP1.connect(state.scheme, state.address, state.port,
+      timeout: state.connect_timeout,
+      hostname: state.hostname
+    )
+  end
+
+  defp connect(state) when state.transport == :http2 do
+    HTTP2.connect(state.scheme, state.address, state.port,
+      timeout: state.connect_timeout,
+      hostname: state.hostname
+    )
+  end
+
+  defp connect(state) do
+    HTTP.connect(state.scheme, state.address, state.port,
+      timeout: state.connect_timeout,
+      hostname: state.hostname
+    )
+  end
+
+  defp request(state) when state.scheme in [:ws, :wss] do
+    WebSocket.upgrade(state.scheme, state.conn, state.path, state.headers, [])
+  end
+
+  defp request(state) do
+    HTTP.request(state.conn, state.method, state.path, state.headers, nil)
+  end
 
   defp check_failed(state, reason) when is_binary(reason) do
     Target.check_failed(state.ref)

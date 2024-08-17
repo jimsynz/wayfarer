@@ -48,7 +48,7 @@ defmodule Wayfarer.RouterTest do
       {:ok, table} = Router.init(Support.Example)
 
       listener = {:http, {127, 0, 0, 1}, random_port()}
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
 
       assert :ok = Router.add_route(table, listener, target, ["*.example.com"], :round_robin)
 
@@ -61,7 +61,7 @@ defmodule Wayfarer.RouterTest do
       {:ok, table} = Router.init(Support.Example)
 
       listener = {:http, {127, 0, 0, 1}, random_port()}
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
 
       assert :ok = Router.add_route(table, listener, target, ["www.example.com"], :round_robin)
 
@@ -74,7 +74,7 @@ defmodule Wayfarer.RouterTest do
       {:ok, table} = Router.init(Support.Example)
 
       listener = {:http, {127, 0, 0, 1}, random_port()}
-      target = {:http, {127, 0, 0, 1}, random_port()}
+      target = {:http, {127, 0, 0, 1}, random_port(), :auto}
 
       assert :ok =
                Router.add_route(
@@ -114,9 +114,9 @@ defmodule Wayfarer.RouterTest do
       {:ok, table} = Router.init(Support.Example)
 
       listener0 = {:http, {127, 0, 0, 1}, random_port()}
-      target0 = {:http, {127, 0, 0, 1}, random_port()}
+      target0 = {:http, {127, 0, 0, 1}, random_port(), :auto}
       listener1 = {:http, {127, 0, 0, 1}, random_port()}
-      target1 = {:http, {127, 0, 0, 1}, random_port()}
+      target1 = {:http, {127, 0, 0, 1}, random_port(), :auto}
 
       assert :ok =
                Router.import_routes(table, [
@@ -142,9 +142,9 @@ defmodule Wayfarer.RouterTest do
       {:ok, table} = Router.init(Support.Example)
 
       listener0 = {:http, {127, 0, 0, 1}, random_port()}
-      target0 = {:http, {127, 0, 0, 1}, random_port()}
+      target0 = {:http, {127, 0, 0, 1}, random_port(), :auto}
       listener1 = {:http, {127, 0, 0, 1}, random_port()}
-      target1 = {:http, {127, 0, 0, 1}, random_port()}
+      target1 = {:http, {127, 0, 0, 1}, random_port(), :auto}
 
       Router.import_routes(table, [
         {listener0, target0, ["0.example.com"], :round_robin},
@@ -164,9 +164,9 @@ defmodule Wayfarer.RouterTest do
       {:ok, table} = Router.init(Support.Example)
 
       listener0 = {:http, {127, 0, 0, 1}, random_port()}
-      target0 = {:http, {127, 0, 0, 1}, random_port()}
+      target0 = {:http, {127, 0, 0, 1}, random_port(), :auto}
       listener1 = {:http, {127, 0, 0, 1}, random_port()}
-      target1 = {:http, {127, 0, 0, 1}, random_port()}
+      target1 = {:http, {127, 0, 0, 1}, random_port(), :auto}
 
       Router.import_routes(table, [
         {listener0, target0, ["0.example.com"], :round_robin},
@@ -186,9 +186,9 @@ defmodule Wayfarer.RouterTest do
       {:ok, table} = Router.init(Support.Example)
 
       listener0 = {:http, {127, 0, 0, 1}, random_port()}
-      target0 = {:http, {127, 0, 0, 1}, random_port()}
+      target0 = {:http, {127, 0, 0, 1}, random_port(), :auto}
       listener1 = {:http, {127, 0, 0, 1}, random_port()}
-      target1 = {:http, {127, 0, 0, 1}, random_port()}
+      target1 = {:http, {127, 0, 0, 1}, random_port(), :auto}
 
       Router.import_routes(table, [
         {listener0, target0, ["0.example.com"], :round_robin},
@@ -215,8 +215,8 @@ defmodule Wayfarer.RouterTest do
       {:ok, table} = Router.init(Support.Example)
 
       listener = {:http, {127, 0, 0, 1}, random_port()}
-      target0 = {:http, {127, 0, 0, 1}, random_port()}
-      target1 = {:http, {127, 0, 0, 1}, random_port()}
+      target0 = {:http, {127, 0, 0, 1}, random_port(), :auto}
+      target1 = {:http, {127, 0, 0, 1}, random_port(), :auto}
 
       :ok =
         Router.import_routes(table, [

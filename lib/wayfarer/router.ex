@@ -51,7 +51,17 @@ defmodule Wayfarer.Router do
   local `Plug`.
   """
   @type target ::
-          {scheme, :inet.ip_address(), :socket.port_number()}
+          {:http | :https | :ws | :wss, :inet.ip_address(), :socket.port_number(),
+           :http1 | :http2 | :auto}
+          | {:plug, module}
+          | {:plug, {module, any}}
+
+  @typedoc """
+  Like `t:target/0` except that it can contain user input for the address portion.
+  """
+  @type target_input ::
+          {:http | :https | :ws | :wss, Wayfarer.Utils.address_input(), :socket.port_number(),
+           :http1 | :http2 | :auto}
           | {:plug, module}
           | {:plug, {module, any}}
 
@@ -85,7 +95,8 @@ defmodule Wayfarer.Router do
 
   This should only ever be called by `Wayfarer.Server` directly.
   """
-  @spec add_route(:ets.tid(), listener, target, [host_name], algorithm) :: :ok | {:error, any}
+  @spec add_route(:ets.tid(), listener, target_input, [host_name], algorithm) ::
+          :ok | {:error, any}
   def add_route(table, listener, target, host_names, algorithm) do
     with {:ok, entries} <- route_to_entries(table, listener, target, host_names, algorithm) do
       :ets.insert(table, entries)
@@ -96,9 +107,9 @@ defmodule Wayfarer.Router do
   end
 
   @doc """
-  Add a number of router into the routing table.
+  Add a number of routes into the routing table.
   """
-  @spec import_routes(:ets.tid(), [{listener, target, [host_name], algorithm}]) :: :ok
+  @spec import_routes(:ets.tid(), [{listener, target_input, [host_name], algorithm}]) :: :ok
   def import_routes(table, routes) do
     with {:ok, entries} <- routes_to_entries(table, routes) do
       :ets.insert(table, entries)
@@ -142,15 +153,15 @@ defmodule Wayfarer.Router do
   Change a target's health state.
   """
   @spec update_target_health_status(:ets.tid(), target, health) :: :ok
-  def update_target_health_status(table, {scheme, address, port}, status) do
+  def update_target_health_status(table, {scheme, address, port, transport}, status) do
     # Match spec generated using:
-    # :ets.fun2ms(fn {listener, host_pattern, {:http, {192, 168, 4, 26}, 80}, algorithm, _} ->
-    #   {listener, host_pattern, {:http, {192, 168, 4, 26}, 80}, algorithm, :healthy}
+    # :ets.fun2ms(fn {listener, host_pattern, {:http, {192, 168, 4, 26}, 80, transport}, algorithm, _} ->
+    #   {listener, host_pattern, {:http, {192, 168, 4, 26}, 80, transport}, algorithm, :healthy}
     # end)
 
     match_spec = [
-      {{:"$1", :"$2", {scheme, address, port}, :"$3", :_}, [],
-       [{{:"$1", :"$2", {{scheme, {address}, port}}, :"$3", status}}]}
+      {{:"$1", :"$2", {scheme, address, port, transport}, :"$3", :_}, [],
+       [{{:"$1", :"$2", {{scheme, {address}, port, transport}}, :"$3", status}}]}
     ]
 
     :ets.select_replace(table, match_spec)
@@ -223,12 +234,12 @@ defmodule Wayfarer.Router do
          message: "Value `#{inspect(algorithm)}` is not a valid load balancing algorithm."
        )}
 
-  defp current_health_state(table, {scheme, address, port}) do
+  defp current_health_state(table, {scheme, address, port, transport}) do
     # Generated using
     # :ets.fun2ms(fn {_, _, :target, :_, health} -> health end)
 
     match_spec = [
-      {{:_, :_, {scheme, address, port}, :_, :"$1"}, [], [:"$1"]}
+      {{:_, :_, {scheme, address, port, transport}, :_, :"$1"}, [], [:"$1"]}
     ]
 
     case :ets.select(table, match_spec, 1) do
@@ -277,6 +288,14 @@ defmodule Wayfarer.Router do
   defp sanitise_listener(listener),
     do: {:error, ArgumentError.exception(message: "Not a valid listener: `#{inspect(listener)}")}
 
+  defp sanitise_transport(transport) when transport in [:http1, :http2, :auto],
+    do: {:ok, transport}
+
+  defp sanitise_transport(transport),
+    do:
+      {:error,
+       ArgumentError.exception(message: "Not a valid target transport: `#{inspect(transport)}`")}
+
   defp sanitise_target({:plug, module}), do: sanitise_target({:plug, module, []})
 
   defp sanitise_target({:plug, module, _}) do
@@ -290,7 +309,14 @@ defmodule Wayfarer.Router do
     end
   end
 
-  defp sanitise_target({scheme, address, port}), do: sanitise_listener({scheme, address, port})
+  defp sanitise_target({scheme, address, port, transport}) do
+    with {:ok, scheme} <- sanitise_scheme(scheme),
+         {:ok, address} <- sanitise_ip_address(address),
+         {:ok, port} <- sanitise_port(port),
+         {:ok, transport} <- sanitise_transport(transport) do
+      {:ok, {scheme, address, port, transport}}
+    end
+  end
 
   defp sanitise_target(target),
     do: {:error, ArgumentError.exception(message: "Not a valid target: `#{inspect(target)}")}

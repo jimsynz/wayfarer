@@ -4,25 +4,22 @@ defmodule Support.Example do
 
   config "Example" do
     listeners do
-      #      http "127.0.0.1", 8080
-      http "0.0.0.0", 8080
+      http "0.0.0.0", 8000
     end
 
     targets do
-      http "127.0.0.1", 8082
-
-      http "192.168.4.26", 80
+      http "127.0.0.1", 4000
     end
 
     health_checks do
       check do
         interval :timer.seconds(5)
+        success_codes 200..399
       end
     end
 
     host_patterns do
-      pattern "*.example.com"
-      pattern "example.com"
+      pattern "localhost"
     end
   end
 end

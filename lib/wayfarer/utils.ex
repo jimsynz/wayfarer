@@ -5,7 +5,8 @@ defmodule Wayfarer.Utils do
 
   @type address_input :: IP.Address.t() | String.t() | :inet.ip_address()
   @type port_number :: 1..0xFFFF
-  @type scheme :: :http | :https
+  @type scheme :: :http | :https | :ws | :wss
+  @type transport :: :http1 | :http2 | :auto
 
   @doc """
   Verify an IP address and convert it into a tuple.
@@ -46,7 +47,7 @@ defmodule Wayfarer.Utils do
   Verify a scheme.
   """
   @spec sanitise_scheme(scheme) :: {:ok, scheme} | {:error, any}
-  def sanitise_scheme(scheme) when scheme in [:http, :https], do: {:ok, scheme}
+  def sanitise_scheme(scheme) when scheme in [:http, :https, :ws, :wss], do: {:ok, scheme}
 
   def sanitise_scheme(scheme),
     do:
@@ -58,7 +59,7 @@ defmodule Wayfarer.Utils do
   @doc """
   Convert a scheme, address, port tuple into a `URI`.
   """
-  @spec to_uri(:http | :https, address_input, port_number) :: {:ok, URI.t()} | {:error, any}
+  @spec to_uri(scheme, address_input, port_number) :: {:ok, URI.t()} | {:error, any}
   def to_uri(scheme, address, port) do
     with {:ok, scheme} <- sanitise_scheme(scheme),
          {:ok, address} <- sanitise_ip_address(address),
@@ -76,7 +77,7 @@ defmodule Wayfarer.Utils do
   @doc """
   Convert a list of targets into a match spec guard.
   """
-  @spec targets_to_ms_guard(atom, [{:http | :https, address_input, port_number}]) :: [
+  @spec targets_to_ms_guard(atom, [{scheme, :inet.ip_address(), port_number, transport}]) :: [
           {atom, any, any}
         ]
   def targets_to_ms_guard(_var, []), do: []
@@ -92,11 +93,8 @@ defmodule Wayfarer.Utils do
   @doc """
   Convert a target tuple into a tuple safe for injection into a match spec.
   """
-  @spec target_to_ms({:http | :https, address_input, port_number}) ::
-          {{:http | :https, address_input, port_number}}
-          | {{:http | :https, {:inet.ip_address()}, port_number}}
-  def target_to_ms({scheme, address, port}) when is_tuple(address),
-    do: {{scheme, {address}, port}}
-
-  def target_to_ms({scheme, address, port}), do: {{scheme, address, port}}
+  @spec target_to_ms({scheme, :inet.ip_address(), port_number, transport}) ::
+          {{scheme, {:inet.ip_address()}, port_number, transport}}
+  def target_to_ms({scheme, address, port, transport}) when is_tuple(address),
+    do: {{scheme, {address}, port, transport}}
 end

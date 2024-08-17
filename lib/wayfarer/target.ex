@@ -9,8 +9,8 @@ defmodule Wayfarer.Target do
 
   @options_schema [
     scheme: [
-      type: {:in, [:http, :https]},
-      doc: "The connection protocol.",
+      type: {:in, [:http, :https, :ws, :wss]},
+      doc: "The connection scheme.",
       required: true
     ],
     port: [
@@ -32,6 +32,12 @@ defmodule Wayfarer.Target do
       type: {:or, [nil, :string]},
       doc: "An optional name for the target.",
       required: false
+    ],
+    transport: [
+      type: {:in, [:http1, :http2, :auto]},
+      required: false,
+      default: :auto,
+      doc: "The connection protocol."
     ],
     health_checks: [
       type: {:list, {:keyword_list, HealthCheck.schema()}},
@@ -92,7 +98,7 @@ defmodule Wayfarer.Target do
   def init(options) do
     with {:ok, options} <- Options.validate(options, @options_schema),
          {:ok, uri} <- to_uri(options[:scheme], options[:address], options[:port]) do
-      target = options |> Keyword.take(~w[scheme address port]a) |> Map.new()
+      target = options |> Keyword.take(~w[scheme address port transport]a) |> Map.new()
       module = options[:module]
 
       key = {module, target.scheme, target.address, target.port}
@@ -117,6 +123,7 @@ defmodule Wayfarer.Target do
               method: check[:method] |> to_string() |> String.upcase(),
               headers: @default_headers,
               hostname: check[:hostname] || uri.host,
+              transport: target.transport,
               passes: 0
             })
 
@@ -170,7 +177,8 @@ defmodule Wayfarer.Target do
       end)
 
     Server.target_status_change(
-      {state.module, state.target.scheme, state.target.address, state.target.port},
+      {state.module, state.target.scheme, state.target.address, state.target.port,
+       state.target.transport},
       :unhealthy
     )
 
@@ -205,7 +213,8 @@ defmodule Wayfarer.Target do
 
     if target_became_healthy? do
       Server.target_status_change(
-        {state.module, state.target.scheme, state.target.address, state.target.port},
+        {state.module, state.target.scheme, state.target.address, state.target.port,
+         state.target.transport},
         :healthy
       )
 

@@ -36,8 +36,8 @@ defmodule Wayfarer.Target.ActiveConnections do
   @impl true
   @spec handle_info(:tick | {:DOWN, any, :process, any, pid, any}, state) :: {:noreply, state}
   def handle_info(:tick, state) do
-    size = :ets.info(state.table, :size)
-    Logger.debug("Active connections: #{size}")
+    # size = :ets.info(state.table, :size)
+    # Logger.debug("Active connections: #{size}")
 
     {:noreply, state}
   end

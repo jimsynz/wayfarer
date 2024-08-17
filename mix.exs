@@ -21,7 +21,7 @@ defmodule Wayfarer.MixProject do
       source_url: "https://harton.dev/james/wayfarer",
       homepage_url: "https://harton.dev/james/wayfarer",
       aliases: aliases(),
-      dialyzer: [plt_add_apps: []],
+      dialyzer: [plt_ignore_apps: [:mint]],
       docs: [
         main: "Wayfarer",
         formatters: ["html"],
@@ -96,11 +96,13 @@ defmodule Wayfarer.MixProject do
       {:castore, "~> 1.0"},
       {:ip, "~> 2.0"},
       {:mint, "~> 1.5"},
+      {:mint_web_socket, "~> 1.0"},
       {:nimble_options, "~> 1.0"},
       {:plug, "~> 1.15"},
       {:spark, "~> 2.0"},
       {:telemetry, "~> 1.2"},
       {:websock, "~> 0.5"},
+      {:websock_adapter, "~> 0.5"},
 
       # Dev/test
       {:credo, "~> 1.7", opts},

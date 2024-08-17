@@ -7,8 +7,9 @@ defmodule Wayfarer.Server do
   @callback child_spec(keyword()) :: Supervisor.child_spec()
   @callback start_link(keyword()) :: GenServer.on_start()
 
-  @scheme_type {:in, [:http, :https]}
+  @scheme_type {:in, [:http, :https, :ws, :wss]}
   @port_type {:in, 0..0xFFFF}
+  @transport_type {:in, [:http1, :http2, :auto]}
   @ip_type {:or,
             [
               {:tuple, [{:in, 0..0xFF}, {:in, 0..0xFF}, {:in, 0..0xFF}, {:in, 0..0xFF}]},
@@ -50,7 +51,7 @@ defmodule Wayfarer.Server do
          {:tuple,
           [
             {:tuple, [@scheme_type, @ip_type, @port_type]},
-            {:tuple, [@scheme_type, @ip_type, @port_type]},
+            {:tuple, [@scheme_type, @ip_type, @port_type, @transport_type]},
             {:list, :string},
             {:in, [:round_robin, :sticky, :random, :least_connections]}
           ]}},
@@ -117,13 +118,14 @@ defmodule Wayfarer.Server do
 
   @doc false
   @spec target_status_change(
-          {module, :http | :https, IP.Address.t(), :socket.port_number()},
+          {module, :http | :https, IP.Address.t(), :socket.port_number(),
+           :http1 | :http2 | :auto},
           Router.health()
         ) :: :ok
-  def target_status_change({module, scheme, address, port}, status) do
+  def target_status_change({module, scheme, address, port, transport}, status) do
     GenServer.cast(
       {:via, Registry, {Wayfarer.Server.Registry, module}},
-      {:target_status_change, scheme, address, port, status}
+      {:target_status_change, scheme, address, port, transport, status}
     )
   end
 
@@ -165,10 +167,10 @@ defmodule Wayfarer.Server do
   @doc false
   @impl true
   @spec handle_cast(any, map) :: {:noreply, map}
-  def handle_cast({:target_status_change, scheme, address, port, status}, state) do
+  def handle_cast({:target_status_change, scheme, address, port, transport, status}, state) do
     Router.update_target_health_status(
       state.routing_table,
-      {scheme, IP.Address.to_tuple(address), port},
+      {scheme, IP.Address.to_tuple(address), port, transport},
       status
     )
 

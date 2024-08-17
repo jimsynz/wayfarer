@@ -4,7 +4,7 @@ defmodule Wayfarer.Server.Proxy do
   specific target.
   """
 
-  alias Mint.HTTP
+  alias Mint.{HTTP, HTTP1, HTTP2}
   alias Plug.Conn
   alias Wayfarer.{Router, Target.ActiveConnections, Target.TotalConnections}
   require Logger
@@ -16,27 +16,64 @@ defmodule Wayfarer.Server.Proxy do
   Convert the request conn into an HTTP request to the specified target.
   """
   @spec request(Conn.t(), Router.target()) :: Conn.t()
-  def request(conn, {scheme, address, port} = target) do
-    with {:ok, mint} <-
-           HTTP.connect(scheme, address, port, hostname: conn.host, timeout: @connect_timeout),
+  def request(conn, target) do
+    with {:ok, mint} <- connect(conn, target),
          :ok <- ActiveConnections.connect(target),
-         :ok <- TotalConnections.proxy_connect(target),
-         {:ok, body, conn} <- read_request_body(conn),
-         {:ok, mint, req} <- send_request(conn, mint, body),
-         {:ok, conn, _mint} <- proxy_responses(conn, mint, req) do
-      conn
+         :ok <- TotalConnections.proxy_connect(target) do
+      handle_request(mint, conn, target)
     else
       error -> handle_error(error, conn, target)
     end
   end
 
+  defp handle_request(mint, conn, {proto, _, _, _}) do
+    with ["Upgrade"] <- Conn.get_req_header(conn, "connection"),
+         ["websocket"] <- Conn.get_req_header(conn, "upgrade") do
+      handle_websocket_request(mint, conn, proto)
+    else
+      _ -> handle_http_request(mint, conn)
+    end
+  end
+
+  defp handle_http_request(mint, conn) do
+    with {:ok, mint, req} <- send_request(conn, mint),
+         {:ok, mint, conn} <- stream_request_body(conn, mint, req),
+         {:ok, conn, _mint} <- proxy_responses(conn, mint, req) do
+      conn
+    end
+  end
+
+  defp handle_websocket_request(mint, conn, proto) do
+    WebSockAdapter.upgrade(conn, Wayfarer.Server.WebSocketProxy, {mint, conn, proto},
+      compress: true
+    )
+  end
+
+  defp connect(conn, {:ws, address, port, transport}),
+    do: connect(conn, {:http, address, port, transport})
+
+  defp connect(conn, {:wss, address, port, transport}),
+    do: connect(conn, {:https, address, port, transport})
+
+  defp connect(conn, {scheme, address, port, :http1}) when is_tuple(address),
+    do: HTTP1.connect(scheme, address, port, hostname: conn.host, timeout: @connect_timeout)
+
+  defp connect(conn, {scheme, address, port, :http2}) when is_tuple(address),
+    do: HTTP2.connect(scheme, address, port, hostname: conn.host, timeout: @connect_timeout)
+
+  defp connect(conn, {scheme, address, port, :auto}) when is_tuple(address),
+    do: HTTP.connect(scheme, address, port, hostname: conn.host, timeout: @connect_timeout)
+
   defp handle_error({:error, _, reason}, conn, target),
     do: handle_error({:error, reason}, conn, target)
 
-  defp handle_error({:error, reason}, conn, {scheme, address, port}) do
-    Logger.error(
-      "Proxy error [phase=#{connection_phase(conn)},ip=#{:inet.ntoa(address)},port=#{port},proto=#{scheme}]: #{message(reason)}"
-    )
+  defp handle_error({:error, reason}, conn, {scheme, address, port, transport}) do
+    Logger.error(fn ->
+      phase = connection_phase(conn)
+      ip = :inet.ntoa(address)
+
+      "Proxy error [phase=#{phase},ip=#{ip},port=#{port},proto=#{scheme},trans=#{transport}]: #{message(reason)}"
+    end)
 
     if conn.halted || conn.state in [:sent, :chunked, :upgraded] do
       # Sadly there's not much more we can do here.
@@ -72,12 +109,17 @@ defmodule Wayfarer.Server.Proxy do
     receive do
       message ->
         case HTTP.stream(mint, message) do
-          :unknown -> proxy_responses(conn, mint, req)
-          {:ok, mint, responses} -> handle_responses(responses, conn, mint, req)
-          {:error, _, reason, _} -> {:error, reason}
+          :unknown ->
+            proxy_responses(conn, mint, req)
+
+          {:ok, mint, responses} ->
+            handle_responses(responses, conn, mint, req)
+
+          {:error, _, reason, _} ->
+            {:error, reason}
         end
     after
-      @idle_timeout -> {:error, conn, :idle_timeout}
+      @idle_timeout -> {:error, :idle_timeout}
     end
   end
 
@@ -138,24 +180,39 @@ defmodule Wayfarer.Server.Proxy do
 
   defp handle_responses([{:error, req, reason} | _], conn, _mint, req), do: {:error, conn, reason}
 
-  # This is bad - we need to figure out how to stream the body, but it's fine
-  # for now.
-  defp read_request_body(conn, body \\ <<>>) do
-    case Conn.read_body(conn) do
-      {:ok, chunk, conn} -> {:ok, body <> chunk, conn}
-      {:more, chunk, conn} -> read_request_body(conn, body <> chunk)
-      {:error, reason} -> {:error, conn, reason}
-    end
-  end
+  defp send_request(conn, mint) do
+    request_path =
+      case {conn.request_path, conn.query_string} do
+        {path, nil} -> path
+        {path, ""} -> path
+        {path, query} -> path <> "?" <> query
+      end
 
-  defp send_request(conn, mint, body) do
     HTTP.request(
       mint,
       conn.method,
-      conn.request_path,
+      request_path,
       proxy_headers(conn),
-      body
+      :stream
     )
+  end
+
+  defp stream_request_body(conn, mint, req) do
+    case Conn.read_body(conn) do
+      {:ok, chunk, conn} ->
+        with {:ok, mint} <- HTTP.stream_request_body(mint, req, chunk),
+             {:ok, mint} <- HTTP.stream_request_body(mint, req, :eof) do
+          {:ok, mint, conn}
+        end
+
+      {:more, chunk, conn} ->
+        with {:ok, mint} <- HTTP.stream_request_body(mint, req, chunk) do
+          stream_request_body(conn, mint, req)
+        end
+
+      {:error, reason} ->
+        {:error, conn, reason}
+    end
   end
 
   defp proxy_headers(conn) do

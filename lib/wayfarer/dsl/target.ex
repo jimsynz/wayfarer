@@ -13,6 +13,7 @@ defmodule Wayfarer.Dsl.Target do
             name: nil,
             port: nil,
             scheme: :http,
+            transport: :auto,
             uri: nil
 
   @type t :: %__MODULE__{
@@ -21,7 +22,8 @@ defmodule Wayfarer.Dsl.Target do
           module: nil | module,
           name: nil | String.t(),
           port: :inet.port_number(),
-          scheme: :http | :https | :plug,
+          scheme: :http | :https | :plug | :ws | :wss,
+          transport: :http1 | :http2 | :auto,
           uri: URI.t()
         }
 
@@ -40,6 +42,12 @@ defmodule Wayfarer.Dsl.Target do
       type: :pos_integer,
       required: true,
       doc: "The TCP port on which to listen for incoming connections."
+    ],
+    transport: [
+      type: {:in, [:http1, :http2, :auto]},
+      required: false,
+      default: :auto,
+      doc: "Which HTTP protocol to use."
     ]
   ]
 
@@ -81,6 +89,28 @@ defmodule Wayfarer.Dsl.Target do
         ],
         auto_set_fields: [scheme: :plug],
         args: [:module]
+      },
+      %Entity{
+        name: :ws,
+        target: __MODULE__,
+        schema: @shared_schema,
+        auto_set_fields: [scheme: :ws],
+        args: [:address, :port],
+        imports: [IP.Sigil],
+        transform: {__MODULE__, :transform, []},
+        entities: [health_checks: HealthChecks.entities()],
+        singleton_entity_keys: [:health_checks]
+      },
+      %Entity{
+        name: :wss,
+        target: __MODULE__,
+        schema: @shared_schema,
+        auto_set_fields: [scheme: :wss],
+        args: [:address, :port],
+        imports: [IP.Sigil],
+        transform: {__MODULE__, :transform, []},
+        entities: [health_checks: HealthChecks.entities()],
+        singleton_entity_keys: [:health_checks]
       }
     ]
   end
@@ -102,9 +132,9 @@ defmodule Wayfarer.Dsl.Target do
     |> Options.Helpers.make_optional!(:port)
     |> Keyword.merge(
       scheme: [
-        type: {:in, [:http, :https, :plug]},
+        type: {:in, [:http, :https, :plug, :ws, :wss]},
         required: true,
-        doc: "The protocol used to talk to the target."
+        doc: "The connection type for the target."
       ],
       plug: [
         type: {:behaviour, Plug},
