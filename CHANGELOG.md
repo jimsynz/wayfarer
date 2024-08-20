@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.0](https://harton.dev/james/wayfarer/compare/v0.5.0...v0.6.0) (2024-08-20)
+
+
+
+
+### Features:
+
+* Add request telemetry (#114)
+
 ## [v0.5.0](https://harton.dev/james/wayfarer/compare/v0.4.0...v0.5.0) (2024-08-17)
 
 
