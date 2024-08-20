@@ -3,7 +3,7 @@ defmodule Wayfarer.Server.Plug do
   Plug pipeline to handle inbound HTTP connections.
   """
 
-  alias Wayfarer.{Router, Server.Proxy, Target.Selector}
+  alias Wayfarer.{Router, Server.Proxy, Target.Selector, Telemetry}
   require Logger
 
   import Plug.Conn
@@ -17,22 +17,57 @@ defmodule Wayfarer.Server.Plug do
   @doc false
   @impl true
   @spec call(Plug.Conn.t(), map) :: Plug.Conn.t()
-  def call(conn, config) when is_atom(config.module) do
-    conn = put_private(conn, :wayfarer, %{listener: config})
+  def call(conn, config) do
+    transport = get_transport(conn)
 
+    conn
+    |> put_private(:wayfarer, %{listener: config, transport: transport})
+    |> Telemetry.request_start()
+    |> do_call(config)
+  end
+
+  defp do_call(conn, config) when is_atom(config.module) do
     listener = {config.scheme, config.address, config.port}
 
     with {:ok, targets} <- Router.find_healthy_targets(config.module, listener, conn.host),
          {:ok, targets, algorithm} <- split_targets_and_algorithms(targets),
          {:ok, target} <- Selector.choose(conn, targets, algorithm) do
-      do_proxy(conn, target)
+      conn
+      |> Telemetry.request_routed(target, algorithm)
+      |> do_proxy(target)
     else
-      :error -> bad_gateway(conn)
-      {:error, reason} -> internal_error(conn, reason)
+      :error ->
+        conn
+        |> Telemetry.request_exception(:error, :target_not_found)
+        |> bad_gateway()
+
+      {:error, reason} ->
+        conn
+        |> Telemetry.request_exception(:error, reason)
+        |> internal_error(reason)
     end
+  rescue
+    exception ->
+      conn
+      |> Telemetry.request_exception(:exception, exception, __STACKTRACE__)
+      |> internal_error(exception)
+  catch
+    reason ->
+      conn
+      |> Telemetry.request_exception(:throw, reason)
+      |> internal_error(reason)
+
+    kind, reason ->
+      conn
+      |> Telemetry.request_exception(kind, reason)
+      |> internal_error(reason)
   end
 
-  def call(conn, _config), do: bad_gateway(conn)
+  defp do_call(conn, _config) do
+    conn
+    |> Telemetry.request_exception(:error, :unrecognised_request)
+    |> bad_gateway()
+  end
 
   defp internal_error(conn, reason) do
     Logger.error("Internal error when routing proxy request: #{inspect(reason)}")
@@ -64,4 +99,12 @@ defmodule Wayfarer.Server.Plug do
     do: split_targets_and_algorithms(tail, [target | targets], algorithm)
 
   defp split_targets_and_algorithms([], targets, algorithm), do: {:ok, targets, algorithm}
+
+  defp get_transport(%{adapter: {Bandit.Adapter, %{transport: %Bandit.HTTP1.Socket{}}}}),
+    do: :http1
+
+  defp get_transport(%{adapter: {Bandit.Adapter, %{transport: %Bandit.HTTP2.Stream{}}}}),
+    do: :http2
+
+  defp get_transport(_), do: :unknown
 end

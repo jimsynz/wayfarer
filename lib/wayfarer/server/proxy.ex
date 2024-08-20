@@ -6,7 +6,7 @@ defmodule Wayfarer.Server.Proxy do
 
   alias Mint.{HTTP, HTTP1, HTTP2}
   alias Plug.Conn
-  alias Wayfarer.{Router, Target.ActiveConnections, Target.TotalConnections}
+  alias Wayfarer.{Router, Target.ActiveConnections, Target.TotalConnections, Telemetry}
   require Logger
 
   @connect_timeout 5_000
@@ -22,16 +22,18 @@ defmodule Wayfarer.Server.Proxy do
          :ok <- TotalConnections.proxy_connect(target) do
       handle_request(mint, conn, target)
     else
-      error -> handle_error(error, conn, target)
+      error ->
+        conn
+        |> Telemetry.request_exception(:error, error)
+        |> handle_error(error, target)
     end
   end
 
   defp handle_request(mint, conn, {proto, _, _, _}) do
-    with ["Upgrade"] <- Conn.get_req_header(conn, "connection"),
-         ["websocket"] <- Conn.get_req_header(conn, "upgrade") do
+    if http1?(conn) && connection_wants_upgrade?(conn) && upgrade_is_websocket?(conn) do
       handle_websocket_request(mint, conn, proto)
     else
-      _ -> handle_http_request(mint, conn)
+      handle_http_request(mint, conn)
     end
   end
 
@@ -40,13 +42,14 @@ defmodule Wayfarer.Server.Proxy do
          {:ok, mint, conn} <- stream_request_body(conn, mint, req),
          {:ok, conn, _mint} <- proxy_responses(conn, mint, req) do
       conn
+      |> Telemetry.request_stop()
     end
   end
 
   defp handle_websocket_request(mint, conn, proto) do
-    WebSockAdapter.upgrade(conn, Wayfarer.Server.WebSocketProxy, {mint, conn, proto},
-      compress: true
-    )
+    conn
+    |> WebSockAdapter.upgrade(Wayfarer.Server.WebSocketProxy, {mint, conn, proto}, compress: true)
+    |> Telemetry.request_upgraded()
   end
 
   defp connect(conn, {:ws, address, port, transport}),
@@ -64,10 +67,10 @@ defmodule Wayfarer.Server.Proxy do
   defp connect(conn, {scheme, address, port, :auto}) when is_tuple(address),
     do: HTTP.connect(scheme, address, port, hostname: conn.host, timeout: @connect_timeout)
 
-  defp handle_error({:error, _, reason}, conn, target),
-    do: handle_error({:error, reason}, conn, target)
+  defp handle_error(conn, {:error, _, reason}, target),
+    do: handle_error(conn, {:error, reason}, target)
 
-  defp handle_error({:error, reason}, conn, {scheme, address, port, transport}) do
+  defp handle_error(conn, {:error, reason}, {scheme, address, port, transport}) do
     Logger.error(fn ->
       phase = connection_phase(conn)
       ip = :inet.ntoa(address)
@@ -87,7 +90,54 @@ defmodule Wayfarer.Server.Proxy do
     end
   end
 
-  defp connection_phase(nil), do: "connect"
+  defp http1?(%{private: %{wayfarer: %{transport: :http1}}}), do: true
+  defp http1?(_), do: false
+
+  defp connection_wants_upgrade?(conn) do
+    case Conn.get_req_header(conn, "connection") do
+      ["Upgrade"] ->
+        true
+
+      ["upgrade"] ->
+        true
+
+      [] ->
+        false
+
+      maybe ->
+        maybe
+        |> Enum.flat_map(&String.split(&1, ~r/,\s*/))
+        |> Enum.map(fn chunk ->
+          chunk
+          |> String.trim()
+          |> String.downcase()
+        end)
+        |> Enum.member?("upgrade")
+    end
+  end
+
+  defp upgrade_is_websocket?(conn) do
+    case Conn.get_req_header(conn, "upgrade") do
+      ["websocket"] ->
+        true
+
+      [] ->
+        false
+
+      maybe ->
+        maybe
+        |> Enum.flat_map(&String.split(&1, ~r/,\s*/))
+        |> Enum.map(fn chunk ->
+          chunk
+          |> String.trim()
+          |> String.split("/")
+          |> hd()
+          |> String.downcase()
+        end)
+        |> Enum.member?("websocket")
+    end
+  end
+
   defp connection_phase(conn) when conn.state in [:chunked, :upgraded], do: "stream"
   defp connection_phase(conn) when conn.halted, do: "done"
   defp connection_phase(conn) when conn.state == :sent, do: "done"
@@ -113,7 +163,7 @@ defmodule Wayfarer.Server.Proxy do
             proxy_responses(conn, mint, req)
 
           {:ok, mint, responses} ->
-            handle_responses(responses, conn, mint, req)
+            handle_responses(conn, responses, mint, req)
 
           {:error, _, reason, _} ->
             {:error, reason}
@@ -123,62 +173,82 @@ defmodule Wayfarer.Server.Proxy do
     end
   end
 
-  defp handle_responses([], conn, mint, req), do: proxy_responses(conn, mint, req)
+  defp handle_responses(conn, [], mint, req), do: proxy_responses(conn, mint, req)
 
-  defp handle_responses([{:status, req, status} | responses], conn, mint, req),
-    do: handle_responses(responses, Conn.put_status(conn, status), mint, req)
-
-  defp handle_responses([{:headers, req, headers} | responses], conn, mint, req) do
-    conn =
-      headers
-      |> Enum.reduce(conn, &Conn.put_resp_header(&2, elem(&1, 0), elem(&1, 1)))
-
-    handle_responses(responses, conn, mint, req)
+  defp handle_responses(conn, [{:status, req, status} | responses], mint, req) do
+    conn
+    |> Conn.put_status(status)
+    |> Telemetry.request_received_status(status)
+    |> handle_responses(responses, mint, req)
   end
 
-  defp handle_responses([{:data, req, body} | responses], conn, mint, req)
+  defp handle_responses(conn, [{:headers, req, headers} | responses], mint, req) do
+    headers
+    |> Enum.reduce(conn, fn {header_name, header_value}, conn ->
+      conn
+      |> Conn.put_resp_header(header_name, header_value)
+    end)
+    |> handle_responses(responses, mint, req)
+  end
+
+  defp handle_responses(conn, [{:data, req, body} | responses], mint, req)
        when conn.state == :chunked do
     case Conn.chunk(conn, body) do
-      {:ok, conn} -> handle_responses(responses, conn, mint, req)
-      {:error, reason} -> {:error, conn, reason}
+      {:ok, conn} ->
+        body_size = byte_size(body)
+
+        conn
+        |> Telemetry.increment_metrics(%{resp_body_bytes: body_size})
+        |> Telemetry.request_resp_body_chunk(body_size)
+        |> handle_responses(responses, mint, req)
+
+      {:error, reason} ->
+        {:error, conn, reason}
     end
   end
 
-  defp handle_responses([{:data, req, body} | responses], conn, mint, req) do
+  defp handle_responses(conn, [{:data, req, body} | responses], mint, req) do
     # We need to check here for a content-length or transfer encoding header and
     # deal with it.  This should be refactored out into a proxy state rather
     # than using the conn as our state.
 
+    body_size = byte_size(body)
+
     case Conn.get_resp_header(conn, "content-length") do
       [] ->
-        conn = Conn.send_chunked(conn, conn.status)
-        handle_responses([{:data, req, body} | responses], conn, mint, req)
+        conn
+        |> Conn.send_chunked(conn.status)
+        |> Telemetry.request_resp_started()
+        |> handle_responses([{:data, req, body} | responses], mint, req)
 
       [length] ->
-        if String.to_integer(length) == byte_size(body) do
+        if String.to_integer(length) == body_size do
           conn =
             conn
-            |> Conn.delete_resp_header("content-length")
             |> Conn.send_resp(conn.status, body)
+            |> Telemetry.request_resp_started()
+            |> Telemetry.increment_metrics(%{resp_body_bytes: body_size})
+            |> Telemetry.request_resp_body_chunk(body_size)
             |> Conn.halt()
 
           {:ok, conn, mint}
         else
           conn =
             conn
-            |> Conn.delete_resp_header("content-length")
+            |> Telemetry.increment_metrics(%{resp_body_bytes: body_size})
+            |> Telemetry.request_resp_body_chunk(body_size)
             |> Conn.send_chunked(conn.status)
 
-          handle_responses([{:data, req, body} | responses], conn, mint, req)
+          handle_responses(conn, [{:data, req, body} | responses], mint, req)
         end
     end
   end
 
-  defp handle_responses([{:done, req} | _], conn, mint, req) do
+  defp handle_responses(conn, [{:done, req} | _], mint, req) do
     {:ok, Conn.halt(conn), mint}
   end
 
-  defp handle_responses([{:error, req, reason} | _], conn, _mint, req), do: {:error, conn, reason}
+  defp handle_responses(conn, [{:error, req, reason} | _], _mint, req), do: {:error, conn, reason}
 
   defp send_request(conn, mint) do
     request_path =
@@ -199,15 +269,36 @@ defmodule Wayfarer.Server.Proxy do
 
   defp stream_request_body(conn, mint, req) do
     case Conn.read_body(conn) do
+      {:ok, <<>>, conn} ->
+        with {:ok, mint} <- HTTP.stream_request_body(mint, req, :eof) do
+          conn =
+            conn
+            |> Telemetry.set_metrics(%{req_body_bytes: 0, req_body_chunks: 0})
+
+          {:ok, mint, conn}
+        end
+
       {:ok, chunk, conn} ->
         with {:ok, mint} <- HTTP.stream_request_body(mint, req, chunk),
              {:ok, mint} <- HTTP.stream_request_body(mint, req, :eof) do
+          chunk_size = byte_size(chunk)
+
+          conn =
+            conn
+            |> Telemetry.increment_metrics(%{req_body_bytes: chunk_size, req_body_chunks: 1})
+            |> Telemetry.request_req_body_chunk(chunk_size)
+
           {:ok, mint, conn}
         end
 
       {:more, chunk, conn} ->
         with {:ok, mint} <- HTTP.stream_request_body(mint, req, chunk) do
-          stream_request_body(conn, mint, req)
+          chunk_size = byte_size(chunk)
+
+          conn
+          |> Telemetry.increment_metrics(%{req_body_bytes: chunk_size, req_body_chunks: 1})
+          |> Telemetry.request_req_body_chunk(chunk_size)
+          |> stream_request_body(mint, req)
         end
 
       {:error, reason} ->

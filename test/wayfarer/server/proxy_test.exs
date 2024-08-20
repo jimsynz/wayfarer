@@ -73,7 +73,7 @@ defmodule Wayfarer.Server.ProxyTest do
 
         {:ok, :fake_conn}
       end)
-      |> expect(:stream_request_body, 2, fn mint, _, _ -> {:ok, mint} end)
+      |> expect(:stream_request_body, fn mint, _, _ -> {:ok, mint} end)
       |> expect(:request, fn mint, _, _, _, _ ->
         send(self(), :ignore)
         {:ok, mint, req}

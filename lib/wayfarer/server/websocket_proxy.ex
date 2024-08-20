@@ -10,6 +10,7 @@ defmodule Wayfarer.Server.WebSocketProxy do
 
   alias Mint.WebSocket
   alias Plug.Conn
+  alias Wayfarer.Telemetry
   require Logger
 
   @default_opts [extensions: [WebSocket.PerMessageDeflate]]
@@ -25,7 +26,7 @@ defmodule Wayfarer.Server.WebSocketProxy do
       end
 
     case WebSocket.upgrade(proto, mint, request_path, proxy_headers(conn), @default_opts) do
-      {:ok, mint, ref} -> {:ok, %{mint: mint, ref: ref, status: :init, buffer: []}}
+      {:ok, mint, ref} -> {:ok, %{mint: mint, ref: ref, status: :init, buffer: [], conn: conn}}
       {:error, _mint, reason} -> {:error, reason}
     end
   end
@@ -35,27 +36,39 @@ defmodule Wayfarer.Server.WebSocketProxy do
 
   @doc false
   @impl true
-  def handle_control({payload, [{:opcode, :ping}]}, state) do
-    with {:ok, websocket, data} <- WebSocket.encode(state.websocket, {:ping, payload}),
+  def handle_control({frame, [{:opcode, :ping}]}, state) do
+    with {:ok, websocket, data} <- WebSocket.encode(state.websocket, {:ping, frame}),
          {:ok, mint} <- WebSocket.stream_request_body(state.mint, state.ref, data) do
-      {:ok, %{state | websocket: websocket, mint: mint}}
+      conn = request_client_frame(state.conn, {:ping, frame})
+
+      {:ok, %{state | websocket: websocket, mint: mint, conn: conn}}
     else
       error -> handle_error(error, state)
     end
   end
 
-  def handle_control(_, state), do: {:ok, state}
+  def handle_control({frame, [{:opcode, frame_type}]}, state) do
+    conn = request_client_frame(state.conn, {frame_type, frame})
+
+    {:ok, %{state | conn: conn}}
+  end
 
   @doc false
   @impl true
   def handle_in({payload, [{:opcode, frame_type}]}, state) when state.status == :init do
-    {:ok, %{state | buffer: [{frame_type, payload} | state.buffer]}}
+    frame = {frame_type, payload}
+    buffer = [frame | state.buffer]
+    conn = request_client_frame(state.conn, frame)
+
+    {:ok, %{state | buffer: buffer, conn: conn}}
   end
 
   def handle_in({payload, [{:opcode, frame_type}]}, state) do
     with {:ok, websocket, data} <- WebSocket.encode(state.websocket, {frame_type, payload}),
          {:ok, mint} <- WebSocket.stream_request_body(state.mint, state.ref, data) do
-      {:ok, %{state | websocket: websocket, mint: mint}}
+      conn = request_client_frame(state.conn, {frame_type, payload})
+
+      {:ok, %{state | websocket: websocket, mint: mint, conn: conn}}
     else
       error -> handle_error(error, state)
     end
@@ -150,7 +163,9 @@ defmodule Wayfarer.Server.WebSocketProxy do
   defp do_empty_buffer([head | tail], state) do
     with {:ok, websocket, data} <- WebSocket.encode(state.websocket, head),
          {:ok, mint} <- WebSocket.stream_request_body(state.mint, state.ref, data) do
-      do_empty_buffer(tail, %{state | websocket: websocket, mint: mint})
+      conn = request_client_frame(state.conn, head)
+
+      do_empty_buffer(tail, %{state | websocket: websocket, mint: mint, conn: conn})
     end
   end
 
@@ -181,15 +196,26 @@ defmodule Wayfarer.Server.WebSocketProxy do
   defp decode_frames(frames, state) do
     frames
     |> Enum.reduce_while({:ok, [], state}, fn frame, {:ok, messages, state} ->
-      case WebSocket.decode(state.websocket, frame) do
-        {:ok, websocket, frames} when is_list(frames) ->
-          messages = Enum.concat(messages, frames)
-          {:cont, {:ok, messages, %{state | websocket: websocket}}}
-
-        {:error, websocket, reason} ->
-          {:halt, {:error, reason, %{state | websocket: websocket}}}
+      case decode_frame(state, frame) do
+        {:ok, new_messages, state} -> {:cont, {:ok, [new_messages, messages], state}}
+        {:error, reason, state} -> {:halt, {:error, reason, state}}
       end
     end)
+    |> case do
+      {:ok, messages, state} -> {:ok, List.flatten(messages), state}
+      {:error, reason, state} -> {:error, reason, state}
+    end
+  end
+
+  defp decode_frame(state, frame) do
+    case WebSocket.decode(state.websocket, frame) do
+      {:ok, websocket, frames} when is_list(frames) ->
+        conn = Enum.reduce(frames, state.conn, &request_server_frame(&2, &1))
+        {:ok, frames, %{state | websocket: websocket, conn: conn}}
+
+      {:error, websocket, reason} ->
+        {:error, reason, %{state | websocket: websocket}}
+    end
   end
 
   defp response_for_messages([], state), do: {:ok, state}
@@ -199,5 +225,27 @@ defmodule Wayfarer.Server.WebSocketProxy do
       {[], messages} -> {:push, messages, state}
       {[{:close, code, _} | _], messages} -> {:stop, :normal, code, messages, state}
     end
+  end
+
+  defp request_client_frame(conn, {frame_type, frame}) do
+    frame_size = byte_size(frame)
+
+    conn
+    |> Telemetry.increment_metrics(%{
+      client_frame_bytes: frame_size,
+      client_frame_count: 1
+    })
+    |> Telemetry.request_client_frame(frame_size, frame_type)
+  end
+
+  defp request_server_frame(conn, {frame_type, frame}) do
+    frame_size = byte_size(frame)
+
+    conn
+    |> Telemetry.increment_metrics(%{
+      server_frame_bytes: frame_size,
+      server_frame_count: 1
+    })
+    |> Telemetry.request_server_frame(frame_size, frame_type)
   end
 end
