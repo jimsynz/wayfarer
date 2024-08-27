@@ -98,7 +98,12 @@ defmodule Wayfarer.Server do
           |> Keyword.merge(opts)
           |> Keyword.put(:module, __MODULE__)
 
-        Server.child_spec(opts)
+        default = %{
+          id: __MODULE__,
+          start: {Wayfarer.Server, :start_link, [opts]}
+        }
+
+        Supervisor.child_spec(default, [])
       end
 
       @doc false
@@ -113,6 +118,24 @@ defmodule Wayfarer.Server do
       end
 
       defoverridable child_spec: 1, start_link: 1
+    end
+  end
+
+  @type listener_options :: unquote(Options.option_typespec(Dsl.Listener.schema()))
+
+  @doc """
+  Add a listener to an already running server.
+
+  If the listener fails to start for any reason, then this function will return
+  an error, otherwise it will block until the listener is ready to accept
+  requests.
+
+  """
+  @spec add_listener(module, listener_options) :: :ok | {:error, any}
+  def add_listener(module, options) do
+    with {:ok, options} <- Options.validate(options, Dsl.Listener.schema()) do
+      {:via, Registry, {Wayfarer.Server.Registry, module}}
+      |> GenServer.call({:add_listener, options})
     end
   end
 
@@ -177,24 +200,38 @@ defmodule Wayfarer.Server do
     {:noreply, state}
   end
 
+  @doc false
+  @impl true
+  @spec handle_call(any, GenServer.from(), map) :: {:reply, any, map}
+  def handle_call({:add_listener, listener}, _from, state) do
+    {:reply, start_listener(listener, state), state}
+  end
+
   defp start_listeners(listeners, state) do
     listeners
     |> Enum.reduce_while({:ok, state}, fn listener, success ->
-      listener = Keyword.put(listener, :module, state.module)
-
-      case DynamicSupervisor.start_child(Listener.DynamicSupervisor, {Listener, listener}) do
-        {:ok, pid} ->
-          Process.link(pid)
-          {:cont, success}
-
-        {:error, {:already_started, pid}} ->
-          Process.link(pid)
-          {:cont, success}
-
-        {:error, reason} ->
-          {:halt, {:error, reason}}
+      case start_listener(listener, state) do
+        {:ok, _} -> {:cont, success}
+        {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
+  end
+
+  defp start_listener(listener, state) do
+    listener = Keyword.put(listener, :module, state.module)
+
+    case DynamicSupervisor.start_child(Listener.DynamicSupervisor, {Listener, listener}) do
+      {:ok, pid} ->
+        Process.link(pid)
+        {:ok, pid}
+
+      {:error, {:already_started, pid}} ->
+        Process.link(pid)
+        {:ok, pid}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp start_targets(targets, state) do
