@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.1](https://harton.dev/james/wayfarer/compare/v0.6.0...v0.6.1) (2024-08-27)
+
+
+
+
+### Bug Fixes:
+
+* Proxy: don't crash for responses with no body.
+
 ## [v0.6.0](https://harton.dev/james/wayfarer/compare/v0.5.0...v0.6.0) (2024-08-20)
 
 
