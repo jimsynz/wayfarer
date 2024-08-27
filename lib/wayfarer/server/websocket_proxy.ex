@@ -106,7 +106,8 @@ defmodule Wayfarer.Server.WebSocketProxy do
   defp handle_error({:error, _, %{reason: reason}, _}, state),
     do: handle_error({:error, reason}, state)
 
-  defp handle_error({:error, reason, state}, _state), do: handle_error({:error, reason}, state)
+  defp handle_error({:error, reason, state}, _state),
+    do: handle_error({:error, reason}, state)
 
   defp handle_error({:error, reason}, state) do
     Logger.debug(fn ->
@@ -218,14 +219,18 @@ defmodule Wayfarer.Server.WebSocketProxy do
     end
   end
 
-  defp response_for_messages([], state), do: {:ok, state}
+  # Handle all the frames coming from the target and decide how to respond to
+  # Bandit/WebSock.  In the case of encountering a close frame, we terminate the
+  # client websocket with the same code, otherwise we just copy the frames over.
+  defp response_for_messages(messages, state, response \\ [])
+  defp response_for_messages([], state, []), do: {:ok, state}
+  defp response_for_messages([], state, response), do: {:push, Enum.reverse(response), state}
 
-  defp response_for_messages(messages, state) do
-    case Enum.split_with(messages, &(elem(&1, 0) == :close)) do
-      {[], messages} -> {:push, messages, state}
-      {[{:close, code, _} | _], messages} -> {:stop, :normal, code, messages, state}
-    end
-  end
+  defp response_for_messages([{:close, code, _} | _], state, response),
+    do: {:stop, :normal, code, Enum.reverse(response), state}
+
+  defp response_for_messages([message | messages], state, response),
+    do: response_for_messages(messages, state, [message | response])
 
   defp request_client_frame(conn, {frame_type, frame}) do
     frame_size = byte_size(frame)
