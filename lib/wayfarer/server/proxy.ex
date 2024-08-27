@@ -244,9 +244,19 @@ defmodule Wayfarer.Server.Proxy do
     end
   end
 
-  defp handle_responses(conn, [{:done, req} | _], mint, req) do
-    {:ok, Conn.halt(conn), mint}
+  # If the connection is done without sending any body content, then we need to
+  # send the respond and halt the conn.
+  defp handle_responses(conn, [{:done, req} | _], mint, req) when conn.state == :unset do
+    conn =
+      conn
+      |> Conn.send_resp(conn.status, "")
+      |> Conn.halt()
+
+    {:ok, conn, mint}
   end
+
+  defp handle_responses(conn, [{:done, req} | _], mint, req) when conn.state == :chunked,
+    do: {:ok, Conn.halt(conn), mint}
 
   defp handle_responses(conn, [{:error, req, reason} | _], _mint, req), do: {:error, conn, reason}
 

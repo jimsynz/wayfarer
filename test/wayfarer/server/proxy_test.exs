@@ -55,7 +55,7 @@ defmodule Wayfarer.Server.ProxyTest do
       {:ok, mint, req}
     end)
     |> stub(:stream, fn mint, :ignore -> {:ok, mint, responses} end)
-    |> stub(:stream, fn mint, _ -> {:ok, mint, [{:done, req}]} end)
+    |> stub(:stream, fn mint, _ -> {:ok, mint, [{:status, req, 200}, {:done, req}]} end)
   end
 
   describe "request/2" do
@@ -79,7 +79,7 @@ defmodule Wayfarer.Server.ProxyTest do
         {:ok, mint, req}
       end)
       |> expect(:stream, fn mint, :ignore ->
-        {:ok, mint, [{:done, req}]}
+        {:ok, mint, [{:status, req, 200}, {:done, req}]}
       end)
 
       assert conn = Proxy.request(conn, target)
