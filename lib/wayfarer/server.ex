@@ -121,8 +121,6 @@ defmodule Wayfarer.Server do
     end
   end
 
-  @type listener_options :: unquote(Options.option_typespec(Dsl.Listener.schema()))
-
   @doc """
   Add a listener to an already running server.
 
@@ -130,12 +128,37 @@ defmodule Wayfarer.Server do
   an error, otherwise it will block until the listener is ready to accept
   requests.
 
+  ## Options
+
+  The following options are supported by listener configuration:
+
+  #{Options.docs(Dsl.Listener.schema())}
   """
-  @spec add_listener(module, listener_options) :: :ok | {:error, any}
+  @spec add_listener(module, options) :: :ok | {:error, any}
   def add_listener(module, options) do
     with {:ok, options} <- Options.validate(options, Dsl.Listener.schema()) do
       {:via, Registry, {Wayfarer.Server.Registry, module}}
       |> GenServer.call({:add_listener, options})
+    end
+  end
+
+  @doc """
+  Add a target to an already running server.
+
+  If the target fails to start for any reason, then this function will return an
+  error, otherwise it will block until the target is started.
+
+  ## Options
+
+  The following options are supported by target configuration:
+
+  #{Options.docs(Target.schema())}
+  """
+  @spec add_target(module, options) :: :ok | {:error, any}
+  def add_target(module, options) do
+    with {:ok, options} <- Options.validate(options, Dsl.Target.schema()) do
+      {:via, Registry, {Wayfarer.Server.Registry, module}}
+      |> GenServer.call({:add_target, options})
     end
   end
 
@@ -207,6 +230,10 @@ defmodule Wayfarer.Server do
     {:reply, start_listener(listener, state), state}
   end
 
+  def handle_call({:add_target, target}, _from, state) do
+    {:reply, start_target(target, state), state}
+  end
+
   defp start_listeners(listeners, state) do
     listeners
     |> Enum.reduce_while({:ok, state}, fn listener, success ->
@@ -237,21 +264,28 @@ defmodule Wayfarer.Server do
   defp start_targets(targets, state) do
     targets
     |> Enum.reduce_while({:ok, state}, fn target, success ->
-      target = Keyword.put(target, :module, state.module)
-
-      case DynamicSupervisor.start_child(Target.DynamicSupervisor, {Target, target}) do
-        {:ok, pid} ->
-          Process.link(pid)
-          {:cont, success}
-
-        {:error, {:already_started, pid}} ->
-          Process.link(pid)
-          {:cont, success}
-
-        {:error, reason} ->
-          {:halt, {:error, reason}}
+      case start_target(target, state) do
+        {:ok, _} -> {:cont, success}
+        {:error, reason} -> {:halt, {:error, reason}}
       end
     end)
+  end
+
+  defp start_target(target, state) do
+    target = Keyword.put(target, :module, state.module)
+
+    case DynamicSupervisor.start_child(Target.DynamicSupervisor, {Target, target}) do
+      {:ok, pid} ->
+        Process.link(pid)
+        {:ok, pid}
+
+      {:error, {:already_started, pid}} ->
+        Process.link(pid)
+        {:ok, pid}
+
+      {:error, reason} ->
+        {:error, reason}
+    end
   end
 
   defp assert_is_server(module) do

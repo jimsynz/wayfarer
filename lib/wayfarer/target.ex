@@ -73,6 +73,9 @@ defmodule Wayfarer.Target do
   @type key :: {module, :http | :https, IP.Address.t(), :socket.port_number()}
 
   @doc false
+  def schema, do: @options_schema
+
+  @doc false
   @spec check_failed({key, reference}) :: :ok
   def check_failed({key, id}),
     do: GenServer.cast({:via, Registry, {Wayfarer.Target.Registry, key}}, {:check_failed, id})
