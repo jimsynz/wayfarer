@@ -8,7 +8,8 @@ defmodule Wayfarer.Listener.Supervisor do
   @impl true
   def init(_) do
     [
-      {DynamicSupervisor, name: Wayfarer.Listener.DynamicSupervisor, strategy: :one_for_one}
+      {DynamicSupervisor, name: Wayfarer.Listener.DynamicSupervisor, strategy: :one_for_one},
+      {Registry, name: Wayfarer.Listener.Registry, keys: :unique}
     ]
     |> Supervisor.init(strategy: :one_for_one)
   end

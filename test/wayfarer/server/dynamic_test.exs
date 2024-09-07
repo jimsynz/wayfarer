@@ -1,4 +1,5 @@
 defmodule Wayfarer.Server.DynamicTest do
+  @moduledoc false
   use ExUnit.Case, async: true
 
   alias Wayfarer.{Listener, Server, Target}
@@ -7,10 +8,12 @@ defmodule Wayfarer.Server.DynamicTest do
   import IP.Sigil
 
   defmodule DynamicServer1 do
+    @moduledoc false
     use Wayfarer.Server
   end
 
   defmodule DynamicServer2 do
+    @moduledoc false
     use Wayfarer.Server
   end
 
@@ -54,6 +57,52 @@ defmodule Wayfarer.Server.DynamicTest do
                  address: ~i"127.0.0.1",
                  port: port
                )
+    end
+  end
+
+  describe "Server.list_listeners/1" do
+    test "when there are no listeners it returns an empty list" do
+      assert [] = Server.list_listeners(DynamicServer1)
+    end
+
+    test "when there are listeners running it returns a list" do
+      port = random_port()
+
+      assert {:ok, _pid} =
+               Server.add_listener(DynamicServer1,
+                 scheme: :http,
+                 address: ~i"127.0.0.1",
+                 port: port
+               )
+
+      assert [{%Listener{} = listener, :accepting_connections}] =
+               Server.list_listeners(DynamicServer1)
+
+      assert listener.scheme == :http
+      assert listener.address == ~i"127.0.0.1"
+      assert listener.port == port
+    end
+  end
+
+  describe "Server.remove_listener/2" do
+    test "when there are no listeners running it returns an error" do
+      listener = %Listener{scheme: :http, address: ~i"127.0.0.1", port: random_port()}
+      assert {:error, :wat} = Server.remove_listener(DynamicServer1, listener)
+    end
+
+    test "when there listeners running with no active connections, it stops immediately" do
+      port = random_port()
+
+      assert {:ok, _pid} =
+               Server.add_listener(DynamicServer1,
+                 scheme: :http,
+                 address: ~i"127.0.0.1",
+                 port: port
+               )
+
+      [{listener, _}] = Server.list_listeners(DynamicServer1)
+
+      assert {:error, :wat} = Server.remove_listener(DynamicServer1, listener)
     end
   end
 end

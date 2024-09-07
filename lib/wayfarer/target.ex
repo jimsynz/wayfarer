@@ -1,6 +1,8 @@
 defmodule Wayfarer.Target do
   # @moduledoc ⬇️⬇️
 
+  defstruct [:scheme, :port, :address, :module, :name, :transport]
+
   use GenServer, restart: :transient
   require Logger
   alias Spark.Options
@@ -57,6 +59,15 @@ defmodule Wayfarer.Target do
     {"Connection", "close"},
     {"Accept", "*/*"}
   ]
+
+  @type t :: %__MODULE__{
+          scheme: :http | :https | :ws | :wss,
+          port: :socket.port_number(),
+          address: IP.Address.t(),
+          module: module,
+          name: nil | String.t(),
+          transport: :http1 | :http2 | :auto
+        }
 
   @moduledoc """
   A GenServer responsible for performing health-checks against HTTP and HTTPS
@@ -144,7 +155,7 @@ defmodule Wayfarer.Target do
         status: :initial
       }
 
-      Registry.register(Wayfarer.Target.Registry, key, uri)
+      Registry.register(Wayfarer.Target.Registry, key, struct(__MODULE__, options))
 
       {:ok, state, {:continue, :perform_health_checks}}
     end

@@ -1,6 +1,14 @@
 defmodule Wayfarer.Server do
   alias Spark.Options
-  alias Wayfarer.{Dsl, Listener, Router, Server, Target}
+
+  alias Wayfarer.{
+    Dsl,
+    Listener,
+    Router,
+    Server,
+    Target
+  }
+
   use GenServer
   require Logger
 
@@ -143,6 +151,21 @@ defmodule Wayfarer.Server do
   end
 
   @doc """
+  List the active listeners for a server.
+  """
+  @spec list_listeners(module) :: {:ok, [Listener.t()]} | {:error, any}
+  def list_listeners(module), do: Listener.Registry.list_listeners_for_module(module)
+
+  @doc """
+  Remove a listener from a running server.
+  """
+  @spec remove_listener(module, Listener.t()) :: {:ok, :stopped | :draining} | {:error, any}
+  def remove_listener(module, listener) do
+    {:via, Registry, {Wayfarer.Server.Registry, module}}
+    |> GenServer.call({:remove_listener, listener})
+  end
+
+  @doc """
   Add a target to an already running server.
 
   If the target fails to start for any reason, then this function will return an
@@ -153,6 +176,10 @@ defmodule Wayfarer.Server do
   The following options are supported by target configuration:
 
   #{Options.docs(Target.schema())}
+
+  The following options are supported by health-check configuration:
+
+  #{Options.docs(Dsl.HealthCheck.schema())}
   """
   @spec add_target(module, options) :: :ok | {:error, any}
   def add_target(module, options) do
@@ -232,6 +259,17 @@ defmodule Wayfarer.Server do
 
   def handle_call({:add_target, target}, _from, state) do
     {:reply, start_target(target, state), state}
+  end
+
+  def handle_call({:remove_listener, listener}, _from, state) do
+    case Listener.Registry.get_pid(listener) do
+      {:ok, pid} ->
+        Process.unlink(pid)
+        {:reply, GenServer.call(pid, :terminate), state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
   end
 
   defp start_listeners(listeners, state) do

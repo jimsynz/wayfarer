@@ -100,6 +100,7 @@ defmodule Wayfarer.MixProject do
       {:nimble_options, "~> 1.0"},
       {:plug, "~> 1.15"},
       {:spark, "~> 2.0"},
+      {:splode, "~> 0.2"},
       {:telemetry, "~> 1.2"},
       {:websock, "~> 0.5"},
       {:websock_adapter, "~> 0.5"},

@@ -1,9 +1,26 @@
 defmodule Wayfarer.Listener do
   # @moduledoc ⬇️⬇️
 
+  defstruct [
+    :address,
+    :certfile,
+    :cipher_suite,
+    :drain_timeout,
+    :http_1_options,
+    :http_2_options,
+    :keyfile,
+    :module,
+    :name,
+    :port,
+    :scheme,
+    :thousand_island_options,
+    :websocket_options
+  ]
+
   use GenServer, restart: :transient
   require Logger
   alias Spark.Options
+  alias Wayfarer.Listener.Registry
   import Wayfarer.Utils
 
   @options_schema [
@@ -82,6 +99,24 @@ defmodule Wayfarer.Listener do
     ]
   ]
 
+  @type t :: %__MODULE__{
+          scheme: :http | :https | :ws | :wss,
+          port: :socket.port_number(),
+          address: IP.Address.t(),
+          drain_timeout: timeout(),
+          module: module,
+          name: nil | String.t(),
+          keyfile: String.t(),
+          certfile: String.t(),
+          cipher_suite: nil | :strong | :compatible,
+          http_1_options: Bandit.http_1_options(),
+          http_2_options: Bandit.http_2_options(),
+          websocket_options: Bandit.websocket_options(),
+          thousand_island_options: ThousandIsland.options()
+        }
+
+  @type status :: :starting | :accepting_connections | :draining
+
   @moduledoc """
   A GenServer which manages the state of each Bandit listener.
 
@@ -101,14 +136,17 @@ defmodule Wayfarer.Listener do
   @impl true
   def init(options) do
     with {:ok, options} <- validate_options(options),
+         listener <- struct(__MODULE__, options),
+         :ok <- Registry.register(listener),
          bandit_options <- build_bandit_options(options),
          {:ok, pid} <- Bandit.start_link(bandit_options),
          {:ok, {listen_address, listen_port}} <- ThousandIsland.listener_info(pid),
+         :ok <- Registry.update_status(listener, :accepting_connections),
          {:ok, listen_address} <- IP.Address.from_tuple(listen_address),
          {:ok, uri} <- to_uri(options[:scheme], listen_address, listen_port) do
       Logger.info("Started Wayfarer listener on #{uri}")
 
-      {:ok, %{server: pid, name: options[:name], uri: uri}}
+      {:ok, %{server: pid, name: options[:name], uri: uri, listener: listener}}
     else
       :error -> {:stop, "Unable to retrieve listener information."}
       {:error, reason} -> {:stop, reason}
@@ -117,9 +155,40 @@ defmodule Wayfarer.Listener do
 
   @doc false
   @impl true
-  def terminate(:normal, %{server: server}) do
-    GenServer.stop(server, :normal)
+  def handle_call(:terminate, _from, state) do
+    case Registry.update_status(state.listener, :draining) do
+      :ok ->
+        task =
+          Task.async(fn ->
+            ThousandIsland.stop(state.server, state.listener.drain_timeout)
+          end)
+
+        state = Map.put(state, :shutdown_task, task)
+
+        case Registry.get_status(state.listener) do
+          {:ok, status} -> {:reply, status, state}
+          {:error, _} -> {:stop, :normal, :stopped, state}
+        end
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
   end
+
+  @doc false
+  @impl true
+  def handle_info({ref, _}, state) when ref == state.shutdown_task.ref,
+    # We don't actually care about the result of the shutdown task, just ignore
+    # it.
+    do: {:noreply, state}
+
+  def handle_info({:DOWN, _ref, :process, pid, reason}, state)
+      when state.shutdown_task.pid == pid,
+      do: {:stop, reason, state}
+
+  def handle_info({:DOWN, _ref, :process, pid, reason}, state)
+      when state.server == pid,
+      do: {:stop, reason, state}
 
   defp validate_options(options) do
     case Keyword.fetch(options, :scheme) do
