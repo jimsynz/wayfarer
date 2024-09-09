@@ -153,7 +153,7 @@ defmodule Wayfarer.Server do
   @doc """
   List the active listeners for a server.
   """
-  @spec list_listeners(module) :: {:ok, [Listener.t()]} | {:error, any}
+  @spec list_listeners(module) :: [Listener.t()]
   def list_listeners(module), do: Listener.Registry.list_listeners_for_module(module)
 
   @doc """

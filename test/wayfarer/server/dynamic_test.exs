@@ -1,8 +1,8 @@
 defmodule Wayfarer.Server.DynamicTest do
   @moduledoc false
-  use ExUnit.Case, async: true
+  use ExUnit.Case, async: false
 
-  alias Wayfarer.{Listener, Server, Target}
+  alias Wayfarer.{Error.Listener.NoSuchListener, Listener, Server, Target}
   use Support.PortTracker
   use Support.HttpRequest
   import IP.Sigil
@@ -75,7 +75,7 @@ defmodule Wayfarer.Server.DynamicTest do
                  port: port
                )
 
-      assert [{%Listener{} = listener, :accepting_connections}] =
+      assert [%Listener{} = listener] =
                Server.list_listeners(DynamicServer1)
 
       assert listener.scheme == :http
@@ -87,10 +87,10 @@ defmodule Wayfarer.Server.DynamicTest do
   describe "Server.remove_listener/2" do
     test "when there are no listeners running it returns an error" do
       listener = %Listener{scheme: :http, address: ~i"127.0.0.1", port: random_port()}
-      assert {:error, :wat} = Server.remove_listener(DynamicServer1, listener)
+      assert {:error, %NoSuchListener{}} = Server.remove_listener(DynamicServer1, listener)
     end
 
-    test "when there listeners running with no active connections, it stops immediately" do
+    test "when there listeners running they are asked to stop" do
       port = random_port()
 
       assert {:ok, _pid} =
@@ -100,9 +100,9 @@ defmodule Wayfarer.Server.DynamicTest do
                  port: port
                )
 
-      [{listener, _}] = Server.list_listeners(DynamicServer1)
+      [listener] = Server.list_listeners(DynamicServer1)
 
-      assert {:error, :wat} = Server.remove_listener(DynamicServer1, listener)
+      assert {:ok, :draining} = Server.remove_listener(DynamicServer1, listener)
     end
   end
 end

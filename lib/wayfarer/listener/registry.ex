@@ -22,7 +22,7 @@ defmodule Wayfarer.Listener.Registry do
   @doc """
   List active listeners for a server module.
   """
-  @spec list_listeners_for_module(module) :: {:ok, [Listener.t()]} | {:error, any}
+  @spec list_listeners_for_module(module) :: [Listener.t()]
   def list_listeners_for_module(module) do
     # :ets.fun2ms(fn {{module, _scheme, _address, _port}, _pid, {listener, _status}} when module == :module ->
     #   listener
@@ -44,7 +44,7 @@ defmodule Wayfarer.Listener.Registry do
     key = registry_key(listener)
 
     case Registry.lookup(__MODULE__, key) do
-      [{_pid, value}] -> {:ok, value}
+      [{_pid, {_listener, status}}] -> {:ok, status}
       [] -> {:error, NoSuchListener.exception(listener: listener)}
     end
   end
@@ -69,14 +69,11 @@ defmodule Wayfarer.Listener.Registry do
   def update_status(listener, status) do
     key = registry_key(listener)
 
-    case Registry.update_value(__MODULE__, key, &update_status_callback(&1, status)) do
+    case Registry.update_value(__MODULE__, key, fn {_listener, _status} -> {listener, status} end) do
       {_, _} -> :ok
       :error -> {:error, NoSuchListener.exception(listener: listener)}
     end
   end
-
-  defp update_status_callback({listener, _old_status}, new_status),
-    do: {listener, new_status}
 
   @doc """
   Returns the registry key for a listener.

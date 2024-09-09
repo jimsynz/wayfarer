@@ -155,24 +155,26 @@ defmodule Wayfarer.Listener do
 
   @doc false
   @impl true
-  def handle_call(:terminate, _from, state) do
+  def handle_call(:terminate, from, state) do
     case Registry.update_status(state.listener, :draining) do
       :ok ->
-        task =
-          Task.async(fn ->
-            ThousandIsland.stop(state.server, state.listener.drain_timeout)
-          end)
-
-        state = Map.put(state, :shutdown_task, task)
-
-        case Registry.get_status(state.listener) do
-          {:ok, status} -> {:reply, status, state}
-          {:error, _} -> {:stop, :normal, :stopped, state}
-        end
+        GenServer.reply(from, {:ok, :draining})
+        ThousandIsland.stop(state.server, state.listener.drain_timeout)
+        {:stop, :normal, state}
 
       {:error, reason} ->
-        {:reply, {:error, reason}, state}
+        {:stop, reason, {:error, reason}, state}
     end
+  end
+
+  @doc false
+  @impl true
+  def terminate(_reason, state) do
+    with :ok <- Registry.update_status(state.listener, :draining) do
+      ThousandIsland.stop(state.server, state.listener.drain_timeout)
+    end
+
+    :ok
   end
 
   @doc false
