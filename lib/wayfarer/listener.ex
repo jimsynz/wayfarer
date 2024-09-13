@@ -155,17 +155,8 @@ defmodule Wayfarer.Listener do
 
   @doc false
   @impl true
-  def handle_call(:terminate, from, state) do
-    case Registry.update_status(state.listener, :draining) do
-      :ok ->
-        GenServer.reply(from, {:ok, :draining})
-        ThousandIsland.stop(state.server, state.listener.drain_timeout)
-        {:stop, :normal, state}
-
-      {:error, reason} ->
-        {:stop, reason, {:error, reason}, state}
-    end
-  end
+  def handle_call(:terminate, _from, state),
+    do: {:stop, :normal, {:ok, :draining}, state}
 
   @doc false
   @impl true
@@ -179,18 +170,14 @@ defmodule Wayfarer.Listener do
 
   @doc false
   @impl true
-  def handle_info({ref, _}, state) when ref == state.shutdown_task.ref,
-    # We don't actually care about the result of the shutdown task, just ignore
-    # it.
-    do: {:noreply, state}
-
   def handle_info({:DOWN, _ref, :process, pid, reason}, state)
-      when state.shutdown_task.pid == pid,
-      do: {:stop, reason, state}
+      when state.server == pid do
+    Logger.error(fn ->
+      "Listener #{state.uri} terminating for reason: #{inspect(reason)}"
+    end)
 
-  def handle_info({:DOWN, _ref, :process, pid, reason}, state)
-      when state.server == pid,
-      do: {:stop, reason, state}
+    {:stop, reason, state}
+  end
 
   defp validate_options(options) do
     case Keyword.fetch(options, :scheme) do

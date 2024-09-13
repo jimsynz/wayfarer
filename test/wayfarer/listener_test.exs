@@ -3,6 +3,7 @@ defmodule Wayfarer.ListenerTest do
   use ExUnit.Case, async: false
   use Support.PortTracker
   use Support.HttpRequest
+  use Mimic
 
   alias Wayfarer.{Listener, Router}
   import IP.Sigil
@@ -50,5 +51,44 @@ defmodule Wayfarer.ListenerTest do
                host: "www.example.com",
                options: [transport_opts: [verify: :verify_none]]
              )
+  end
+
+  describe "handle_call(:terminate, _, _)" do
+    setup :set_mimic_global
+
+    test "it cleanly shuts down" do
+      port = random_port()
+
+      assert {:ok, pid} =
+               Listener.start_link(
+                 scheme: :http,
+                 address: ~i"127.0.0.1",
+                 port: port,
+                 module: Support.Example
+               )
+
+      assert {:ok, :draining} = GenServer.call(pid, :terminate)
+      refute Process.alive?(pid)
+    end
+
+    test "it correctly drains connections" do
+      port = random_port()
+
+      assert {:ok, pid} =
+               Listener.start_link(
+                 scheme: :http,
+                 address: ~i"127.0.0.1",
+                 port: port,
+                 module: Support.Example,
+                 drain_timeout: 123_456
+               )
+
+      ThousandIsland
+      |> expect(:stop, fn _pid, timeout ->
+        assert timeout == 123_456
+      end)
+
+      assert {:ok, :draining} = GenServer.call(pid, :terminate)
+    end
   end
 end

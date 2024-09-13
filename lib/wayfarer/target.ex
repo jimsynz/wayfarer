@@ -112,10 +112,10 @@ defmodule Wayfarer.Target do
   def init(options) do
     with {:ok, options} <- Options.validate(options, @options_schema),
          {:ok, uri} <- to_uri(options[:scheme], options[:address], options[:port]) do
-      target = options |> Keyword.take(~w[scheme address port transport]a) |> Map.new()
+      target = struct(__MODULE__, options)
       module = options[:module]
 
-      key = {module, target.scheme, target.address, target.port}
+      key = Target.Registry.registry_key(target)
 
       checks =
         options
@@ -152,10 +152,11 @@ defmodule Wayfarer.Target do
         uri: uri,
         module: module,
         name: options[:name],
-        status: :initial
+        status: :initial,
+        key: key
       }
 
-      Registry.register(Wayfarer.Target.Registry, key, struct(__MODULE__, options))
+      Target.Registry.register(target)
 
       {:ok, state, {:continue, :perform_health_checks}}
     end
@@ -190,11 +191,7 @@ defmodule Wayfarer.Target do
         |> then(&%{&1 | status: :unhealthy, passes: 0})
       end)
 
-    Server.target_status_change(
-      {state.module, state.target.scheme, state.target.address, state.target.port,
-       state.target.transport},
-      :unhealthy
-    )
+    Server.target_status_change(state.key, :unhealthy)
 
     {:noreply, %{state | checks: checks, status: :unhealthy}}
   end
@@ -226,11 +223,7 @@ defmodule Wayfarer.Target do
       |> Enum.all?(&(&1.status == :healthy))
 
     if target_became_healthy? do
-      Server.target_status_change(
-        {state.module, state.target.scheme, state.target.address, state.target.port,
-         state.target.transport},
-        :healthy
-      )
+      Server.target_status_change(state.key, :healthy)
 
       Logger.info("Target #{state.uri} became healthy")
 

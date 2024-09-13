@@ -166,6 +166,12 @@ defmodule Wayfarer.Server do
   end
 
   @doc """
+  List the active targets for a server.
+  """
+  @spec list_targets(module) :: [Target.t()]
+  def list_targets(module), do: Target.Registry.list_targets_for_module(module)
+
+  @doc """
   Add a target to an already running server.
 
   If the target fails to start for any reason, then this function will return an

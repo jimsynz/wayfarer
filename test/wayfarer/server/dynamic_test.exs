@@ -93,7 +93,7 @@ defmodule Wayfarer.Server.DynamicTest do
     test "when there listeners running they are asked to stop" do
       port = random_port()
 
-      assert {:ok, _pid} =
+      assert {:ok, pid} =
                Server.add_listener(DynamicServer1,
                  scheme: :http,
                  address: ~i"127.0.0.1",
@@ -103,6 +103,40 @@ defmodule Wayfarer.Server.DynamicTest do
       [listener] = Server.list_listeners(DynamicServer1)
 
       assert {:ok, :draining} = Server.remove_listener(DynamicServer1, listener)
+
+      refute Process.alive?(pid)
+    end
+  end
+
+  describe "Server.add_target/2" do
+    test "a target can be dynamically added to a server" do
+      port = random_port()
+
+      assert {:ok, _pid} =
+               Server.add_target(DynamicServer1,
+                 scheme: :http,
+                 port: port,
+                 address: ~i"127.0.0.1"
+               )
+
+      assert [target] = Target.Registry.list_targets_for_module(DynamicServer1)
+      assert target.port == port
+    end
+  end
+
+  describe "Server.list_targets/1" do
+    test "running targets are returned" do
+      port = random_port()
+
+      assert {:ok, _pid} =
+               Server.add_target(DynamicServer1,
+                 scheme: :http,
+                 port: port,
+                 address: ~i"127.0.0.1"
+               )
+
+      assert [target] = Server.list_targets(DynamicServer1)
+      assert target.port == port
     end
   end
 end

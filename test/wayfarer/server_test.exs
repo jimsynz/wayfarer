@@ -41,7 +41,9 @@ defmodule Wayfarer.ServerTest do
                )
 
       assert {:ok, :initial} =
-               Wayfarer.Target.current_status({Support.Example, :http, ~i"127.0.0.1", port})
+               Wayfarer.Target.current_status(
+                 {Support.Example, :http, ~i"127.0.0.1", port, :auto}
+               )
     end
 
     test "an initial routing table can be passed as options" do

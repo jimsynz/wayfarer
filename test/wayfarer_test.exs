@@ -58,8 +58,15 @@ defmodule WayfarerTest do
           ]
         )
 
-      wait_for_target_state({IntegrationProxy, :http, ~i"127.0.0.1", target0_port}, :healthy)
-      wait_for_target_state({IntegrationProxy, :http, ~i"127.0.0.1", target1_port}, :healthy)
+      wait_for_target_state(
+        {IntegrationProxy, :http, ~i"127.0.0.1", target0_port, :auto},
+        :healthy
+      )
+
+      wait_for_target_state(
+        {IntegrationProxy, :http, ~i"127.0.0.1", target1_port, :auto},
+        :healthy
+      )
 
       assert {:ok, %{status: 200}} =
                request(:http, ~i"127.0.0.1", listener_port, host: "www.example.com")
