@@ -159,9 +159,9 @@ defmodule Wayfarer.Server do
   @doc """
   Remove a listener from a running server.
   """
-  @spec remove_listener(module, Listener.t()) :: {:ok, :stopped | :draining} | {:error, any}
-  def remove_listener(module, listener) do
-    {:via, Registry, {Wayfarer.Server.Registry, module}}
+  @spec remove_listener(Listener.t()) :: {:ok, :draining} | {:error, any}
+  def remove_listener(listener) do
+    {:via, Registry, {Wayfarer.Server.Registry, listener.module}}
     |> GenServer.call({:remove_listener, listener})
   end
 
@@ -193,6 +193,15 @@ defmodule Wayfarer.Server do
       {:via, Registry, {Wayfarer.Server.Registry, module}}
       |> GenServer.call({:add_target, options})
     end
+  end
+
+  @doc """
+  Remove a target from an already running server.
+  """
+  @spec remove_target(Target.t()) :: {:ok, :draining} | {:error, any}
+  def remove_target(target) do
+    {:via, Registry, {Wayfarer.Server.Registry, target.module}}
+    |> GenServer.call({:remove_target, target})
   end
 
   @doc false
@@ -233,7 +242,7 @@ defmodule Wayfarer.Server do
          initial_routing_table <- Keyword.get(options, :routing_table, []),
          {:ok, routing_table} <- Router.init(module),
          :ok <- Router.import_routes(routing_table, initial_routing_table),
-         state <- %{module: module, routing_table: routing_table},
+         state <- %{module: module, routing_table: routing_table, terminating_targets: %{}},
          {:ok, state} <- start_listeners(listeners, state),
          {:ok, state} <- start_targets(targets, state) do
       {:ok, state}
@@ -277,6 +286,38 @@ defmodule Wayfarer.Server do
         {:reply, {:error, reason}, state}
     end
   end
+
+  def handle_call({:remove_target, target}, _from, state) do
+    case Target.Registry.get_pid(target) do
+      {:ok, pid} ->
+        Process.unlink(pid)
+        ref = Process.monitor(pid)
+
+        state = %{state | terminating_targets: Map.put(state.terminating_targets, ref, target)}
+
+        {:reply, GenServer.call(pid, :terminate), state}
+
+      {:error, reason} ->
+        {:reply, {:error, reason}, state}
+    end
+  end
+
+  @doc false
+  @impl true
+  def handle_info({:DOWN, ref, :process, _pid, _reason}, state)
+      when is_map_key(state.terminating_targets, ref) do
+    target = Map.fetch!(state.terminating_targets, ref)
+
+    Router.remove_target(
+      state.routing_table,
+      {target.scheme, IP.Address.to_tuple(target.address), target.port, target.transport}
+    )
+
+    {:noreply, state}
+  end
+
+  def handle_info({:DOWN, _ref, :process, _pid, _reason}, state),
+    do: {:noreply, state}
 
   defp start_listeners(listeners, state) do
     listeners

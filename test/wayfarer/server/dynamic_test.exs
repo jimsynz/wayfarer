@@ -2,7 +2,14 @@ defmodule Wayfarer.Server.DynamicTest do
   @moduledoc false
   use ExUnit.Case, async: false
 
-  alias Wayfarer.{Error.Listener.NoSuchListener, Listener, Server, Target}
+  alias Wayfarer.{
+    Error.Listener.NoSuchListener,
+    Error.Target.NoSuchTarget,
+    Listener,
+    Server,
+    Target
+  }
+
   use Support.PortTracker
   use Support.HttpRequest
   import IP.Sigil
@@ -84,10 +91,16 @@ defmodule Wayfarer.Server.DynamicTest do
     end
   end
 
-  describe "Server.remove_listener/2" do
+  describe "Server.remove_listener/1" do
     test "when there are no listeners running it returns an error" do
-      listener = %Listener{scheme: :http, address: ~i"127.0.0.1", port: random_port()}
-      assert {:error, %NoSuchListener{}} = Server.remove_listener(DynamicServer1, listener)
+      listener = %Listener{
+        module: DynamicServer1,
+        scheme: :http,
+        address: ~i"127.0.0.1",
+        port: random_port()
+      }
+
+      assert {:error, %NoSuchListener{}} = Server.remove_listener(listener)
     end
 
     test "when there listeners running they are asked to stop" do
@@ -102,7 +115,7 @@ defmodule Wayfarer.Server.DynamicTest do
 
       [listener] = Server.list_listeners(DynamicServer1)
 
-      assert {:ok, :draining} = Server.remove_listener(DynamicServer1, listener)
+      assert {:ok, :draining} = Server.remove_listener(listener)
 
       refute Process.alive?(pid)
     end
@@ -137,6 +150,22 @@ defmodule Wayfarer.Server.DynamicTest do
 
       assert [target] = Server.list_targets(DynamicServer1)
       assert target.port == port
+    end
+  end
+
+  describe "Server.remove_target/1" do
+    test "when the target doesn't exist, it returns an error" do
+      port = random_port()
+
+      target = %Target{
+        scheme: :http,
+        port: port,
+        address: ~i"127.0.0.1",
+        module: DynamicServer1,
+        transport: :auto
+      }
+
+      assert {:error, %NoSuchTarget{}} = Server.remove_target(target)
     end
   end
 end

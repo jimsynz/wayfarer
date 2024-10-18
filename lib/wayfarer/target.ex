@@ -249,6 +249,12 @@ defmodule Wayfarer.Target do
     {:reply, {:ok, state.status}, state}
   end
 
+  def handle_call(:terminate, _from, state) do
+    Server.target_status_change(state.key, :draining)
+
+    {:stop, :normal, {:ok, :draining}, state}
+  end
+
   defp perform_health_checks(state) do
     for {_ref, check} <- state.checks do
       {:ok, _pid} = GenServer.start(Target.Check, check)
