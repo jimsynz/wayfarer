@@ -40,7 +40,12 @@ defmodule Wayfarer.Server.PlugTest do
       conn =
         :get
         |> conn("/")
-        |> SUT.call(%{module: Support.Example, scheme: :http, address: {127, 0, 0, 1}, port: port})
+        |> SUT.call(%{
+          module: Support.Example,
+          scheme: :http,
+          address: {127, 0, 0, 1},
+          port: port
+        })
 
       assert conn.private.wayfarer.listener == %{
                module: Support.Example,

@@ -264,7 +264,7 @@ defmodule Wayfarer.Router do
       |> String.split(".")
       |> Enum.reduce({}, fn
         "*", {} -> {:_}
-        segment, pattern -> Tuple.append(pattern, segment)
+        segment, pattern -> Tuple.insert_at(pattern, tuple_size(pattern), segment)
       end)
 
     {:ok, pattern}
