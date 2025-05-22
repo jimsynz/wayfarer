@@ -64,13 +64,14 @@ defmodule Wayfarer.Utils do
     with {:ok, scheme} <- sanitise_scheme(scheme),
          {:ok, address} <- sanitise_ip_address(address),
          {:ok, address} <- IP.Address.from_tuple(address),
-         {:ok, port} <- sanitise_port(port) do
-      %URI{
-        scheme: to_string(scheme),
-        host: to_string(address),
-        port: port
-      }
-      |> URI.new()
+         {:ok, port} <- sanitise_port(port),
+         {:ok, uri} <- URI.new("") do
+      {:ok,
+       Map.merge(uri, %{
+         scheme: to_string(scheme),
+         host: to_string(address),
+         port: port
+       })}
     end
   end
 
