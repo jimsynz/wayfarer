@@ -113,7 +113,7 @@ defmodule Wayfarer.MixProject do
       {:faker, "~> 0.18", opts},
       {:git_ops, "~> 2.6", opts},
       {:igniter, "~> 0.6", Keyword.put(opts, :optional, true)},
-      {:mimic, "~> 1.7", Keyword.delete(opts, :runtime)},
+      {:mimic, "~> 2.0", Keyword.delete(opts, :runtime)},
       {:mix_audit, "~> 2.1", opts}
     ]
   end
