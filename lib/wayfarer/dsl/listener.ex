@@ -6,7 +6,8 @@ defmodule Wayfarer.Dsl.Listener do
   alias Spark.Dsl.Entity
   alias Wayfarer.Utils
 
-  defstruct address: nil,
+  defstruct __spark_metadata__: nil,
+            address: nil,
             certfile: nil,
             cipher_suite: nil,
             http_1_options: [],

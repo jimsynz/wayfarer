@@ -15,7 +15,8 @@ defmodule Wayfarer.Dsl.HealthCheck do
     threshold: 3
   ]
 
-  defstruct connect_timeout: @defaults[:connect_timeout],
+  defstruct __spark_metadata__: nil,
+            connect_timeout: @defaults[:connect_timeout],
             hostname: nil,
             interval: @defaults[:interval],
             method: @defaults[:method],
@@ -101,6 +102,7 @@ defmodule Wayfarer.Dsl.HealthCheck do
   def to_options(check) do
     check
     |> Map.from_struct()
+    |> Map.delete(:__spark_metadata__)
     |> Enum.to_list()
   end
 

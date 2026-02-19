@@ -110,7 +110,7 @@ defmodule Wayfarer.Dsl.Transformer do
           target when target.scheme == :plug ->
             target
             |> Map.from_struct()
-            |> Map.drop([:address, :health_checks, :port, :uri])
+            |> Map.drop([:__spark_metadata__, :address, :health_checks, :port, :uri])
             |> Enum.to_list()
 
           target when target.scheme in [:http, :https, :ws, :wss] ->
@@ -123,7 +123,7 @@ defmodule Wayfarer.Dsl.Transformer do
 
             target
             |> Map.from_struct()
-            |> Map.drop([:module, :uri])
+            |> Map.drop([:__spark_metadata__, :module, :uri])
             |> Map.put(:health_checks, health_checks)
             |> Enum.to_list()
         end)
@@ -168,7 +168,7 @@ defmodule Wayfarer.Dsl.Transformer do
   defp listener_to_options(listener) do
     listener
     |> Map.from_struct()
-    |> Map.delete(:uri)
+    |> Map.drop([:__spark_metadata__, :uri])
     |> Enum.to_list()
   end
 end

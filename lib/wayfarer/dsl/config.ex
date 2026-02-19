@@ -7,6 +7,7 @@ defmodule Wayfarer.Dsl.Config do
   alias Wayfarer.Dsl.{HealthChecks, HostPatterns, Listeners, Targets}
 
   defstruct __identifier__: nil,
+            __spark_metadata__: nil,
             health_checks: HealthChecks.init(),
             host_patterns: HostPatterns.init(),
             listeners: Listeners.init(),

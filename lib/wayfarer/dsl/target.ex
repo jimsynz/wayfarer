@@ -7,7 +7,8 @@ defmodule Wayfarer.Dsl.Target do
   alias Wayfarer.Dsl.{HealthCheck, HealthChecks}
   alias Wayfarer.Utils
 
-  defstruct address: nil,
+  defstruct __spark_metadata__: nil,
+            address: nil,
             health_checks: HealthChecks.init(),
             module: nil,
             name: nil,

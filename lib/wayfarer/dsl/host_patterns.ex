@@ -6,7 +6,7 @@ defmodule Wayfarer.Dsl.HostPatterns do
   alias Spark.Dsl.Entity
   alias Wayfarer.Dsl.HostPattern
 
-  defstruct host_patterns: []
+  defstruct __spark_metadata__: nil, host_patterns: []
 
   @type t :: %__MODULE__{host_patterns: []}
 

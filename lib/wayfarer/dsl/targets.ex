@@ -6,7 +6,7 @@ defmodule Wayfarer.Dsl.Targets do
   alias Spark.Dsl.Entity
   alias Wayfarer.Dsl.Target
 
-  defstruct algorithm: :round_robin, targets: []
+  defstruct __spark_metadata__: nil, algorithm: :round_robin, targets: []
 
   @type t :: %__MODULE__{algorithm: :round_robin | :sticky, targets: [Target.t()]}
 

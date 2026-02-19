@@ -6,7 +6,7 @@ defmodule Wayfarer.Dsl.HealthChecks do
   alias Spark.Dsl.Entity
   alias Wayfarer.Dsl.HealthCheck
 
-  defstruct health_checks: []
+  defstruct __spark_metadata__: nil, health_checks: []
 
   @type t :: %__MODULE__{health_checks: [HealthCheck.t()]}
 

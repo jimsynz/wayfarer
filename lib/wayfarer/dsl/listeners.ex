@@ -6,7 +6,7 @@ defmodule Wayfarer.Dsl.Listeners do
   alias Spark.Dsl.Entity
   alias Wayfarer.Dsl.Listener
 
-  defstruct listeners: []
+  defstruct __spark_metadata__: nil, listeners: []
 
   @type t :: %__MODULE__{listeners: [Listener.t()]}
 
