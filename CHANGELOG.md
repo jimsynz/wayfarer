@@ -5,6 +5,17 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.2](https://harton.dev/james/wayfarer/compare/v0.6.1...v0.6.2) (2026-02-19)
+
+
+
+
+### Bug Fixes:
+
+* add websocket_proxy dialyzer ignores for MIX_ENV=test by James Harton
+
+* add `__spark_metadata__` to DSL entity structs for Spark 2.4.0 compatibility by James Harton
+
 ## [v0.6.1](https://harton.dev/james/wayfarer/compare/v0.6.0...v0.6.1) (2024-08-27)
 
 
