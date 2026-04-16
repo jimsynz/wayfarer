@@ -102,7 +102,7 @@ defmodule Wayfarer.MixProject do
       {:spark, "~> 2.0"},
       {:telemetry, "~> 1.2"},
       {:websock, "~> 0.5"},
-      {:websock_adapter, "~> 0.5"},
+      {:websock_adapter, "~> 0.6"},
 
       # Dev/test
       {:credo, "~> 1.7", opts},
