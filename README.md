@@ -1,6 +1,5 @@
 # Wayfarer
 
-[![Build Status](https://drone.harton.dev/api/badges/james/wayfarer/status.svg?ref=refs/heads/main)](https://drone.harton.dev/james/wayfarer)
 [![Hippocratic License HL3-FULL](https://img.shields.io/static/v1?label=Hippocratic%20License&message=HL3-FULL&labelColor=5e2751&color=bc8c3d)](https://firstdonoharm.dev/version/3/0/full.html)
 
 Wayfarer is a runtime-configurable HTTP reverse proxy using
@@ -26,8 +25,7 @@ end
 ```
 
 Documentation for the latest release can be found on
-[HexDocs](https://hexdocs.pm/wayfarer) and for the `main` branch on
-[docs.harton.nz](https://docs.harton.nz/james/wayfarer).
+[HexDocs](https://hexdocs.pm/wayfarer).
 
 ## Github Mirror
 
