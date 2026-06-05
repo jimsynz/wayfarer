@@ -5,6 +5,11 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.4](https://harton.dev/james/wayfarer/compare/v0.6.3...v0.6.4) (2026-06-05)
+
+* relicense as Apache 2.0.
+
+
 ## [v0.6.3](https://harton.dev/james/wayfarer/compare/v0.6.2...v0.6.3) (2026-06-05)
 
 
