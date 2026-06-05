@@ -66,9 +66,9 @@ defmodule Wayfarer.MixProject do
   defp package do
     [
       name: :wayfarer,
-      files: ~w[lib .formatter.exs mix.exs README.md LICENSE.md CHANGELOG.md],
+      files: ~w[lib .formatter.exs mix.exs README.md LICENSE CHANGELOG.md],
       maintainers: ["James Harton <james@harton.nz>"],
-      licenses: ["HL3-FULL"],
+      licenses: ["Apache-2.0"],
       links: %{
         "Source" => "https://harton.dev/james/wayfarer",
         "GitHub" => "https://github.com/jimsynz/wayfarer",
