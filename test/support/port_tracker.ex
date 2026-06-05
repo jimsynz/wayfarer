@@ -4,7 +4,6 @@ defmodule Support.PortTracker do
   """
 
   use GenServer
-  require Logger
 
   defmacro __using__(_) do
     quote do

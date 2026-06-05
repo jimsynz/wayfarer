@@ -4,7 +4,6 @@ defmodule Wayfarer.Target.ActiveConnections do
   """
 
   use GenServer
-  require Logger
   alias Wayfarer.{Router, Utils}
 
   @type state :: %{table: :ets.tid(), timer: :timer.tref()}
@@ -36,9 +35,6 @@ defmodule Wayfarer.Target.ActiveConnections do
   @impl true
   @spec handle_info(:tick | {:DOWN, any, :process, any, pid, any}, state) :: {:noreply, state}
   def handle_info(:tick, state) do
-    # size = :ets.info(state.table, :size)
-    # Logger.debug("Active connections: #{size}")
-
     {:noreply, state}
   end
 

@@ -2,7 +2,6 @@ defmodule Wayfarer.Server do
   alias Spark.Options
   alias Wayfarer.{Dsl, Listener, Router, Server, Target}
   use GenServer
-  require Logger
 
   @callback child_spec(keyword()) :: Supervisor.child_spec()
   @callback start_link(keyword()) :: GenServer.on_start()
