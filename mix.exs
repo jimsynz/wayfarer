@@ -110,7 +110,6 @@ defmodule Wayfarer.MixProject do
       {:doctor, "~> 0.23", opts},
       {:ex_check, "~> 0.16", opts},
       {:ex_doc, ">= 0.0.0", opts},
-      {:faker, "~> 0.18", opts},
       {:git_ops, "~> 2.6", opts},
       {:igniter, "~> 0.8", Keyword.put(opts, :optional, true)},
       {:mimic, "~> 2.0", Keyword.delete(opts, :runtime)},
