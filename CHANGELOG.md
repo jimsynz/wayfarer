@@ -5,6 +5,15 @@ See [Conventional Commits](Https://conventionalcommits.org) for commit guideline
 
 <!-- changelog -->
 
+## [v0.6.3](https://harton.dev/james/wayfarer/compare/v0.6.2...v0.6.3) (2026-06-05)
+
+
+
+
+### Bug Fixes:
+
+* remove unused `require Logger` statements by James Harton
+
 ## [v0.6.2](https://harton.dev/james/wayfarer/compare/v0.6.1...v0.6.2) (2026-02-19)
 
 

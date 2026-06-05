@@ -5,7 +5,7 @@ defmodule Wayfarer.MixProject do
   A runtime-configurable HTTP reverse proxy based on Bandit.
   """
 
-  @version "0.6.2"
+  @version "0.6.3"
 
   def project do
     [
